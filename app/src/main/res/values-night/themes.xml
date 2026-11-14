@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark window theme for system night mode, so launch and window backgrounds match Compose's dark theme. -->
+    <style name="Theme.TheFoodHub" parent="android:Theme.Material.NoActionBar" />
+</resources>

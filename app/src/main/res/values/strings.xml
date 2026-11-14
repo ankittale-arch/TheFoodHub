@@ -1,0 +1,70 @@
+<resources>
+    <string name="app_name">The FoodHub</string>
+
+    <!-- Navigation -->
+    <string name="nav_search">Search</string>
+    <string name="nav_favorites">Favorites</string>
+    <string name="action_back">Back</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="action_add_favorite">Add to favorites</string>
+    <string name="action_remove_favorite">Remove from favorites</string>
+
+    <string name="nav_home">Home</string>
+
+    <!-- Home -->
+    <string name="home_headline_muted">Let’s plan</string>
+    <string name="home_headline">your next feast!</string>
+    <string name="home_search_hint">Let’s cook something…</string>
+    <string name="home_chip_all">All</string>
+    <string name="home_chip_popular">Popular</string>
+    <string name="home_chip_quick">Quick &amp; Easy</string>
+    <string name="home_chip_diets">Diets</string>
+    <string name="home_diet_vegetarian">Vegetarian</string>
+    <string name="home_diet_vegan">Vegan</string>
+    <string name="home_diet_gluten_free">Gluten free</string>
+    <string name="home_diet_ketogenic">Ketogenic</string>
+    <string name="home_diet_paleo">Paleo</string>
+    <string name="home_section_popular">Most popular recipes</string>
+    <string name="home_section_quick">Quick &amp; easy recipes</string>
+    <string name="home_section_diet">%1$s recipes</string>
+    <string name="home_empty">No recipes here right now. Try another category.</string>
+    <string name="home_minutes">%1$d min</string>
+    <string name="home_likes">%1$d likes</string>
+    <string name="home_rating">Rated %1$s out of 5</string>
+
+    <!-- Search -->
+    <string name="search_hint">Search recipes, e.g. pasta</string>
+    <string name="search_empty_title">What are you cooking today?</string>
+    <string name="search_empty_body">Search by dish, ingredient or cuisine.</string>
+    <string name="search_no_results">No recipes found for “%1$s”.</string>
+
+    <!-- Favorites -->
+    <string name="favorites_empty_title">No favorites yet</string>
+    <string name="favorites_empty_body">Tap the heart on any recipe to save it here.</string>
+    <string name="favorites_removed">Removed “%1$s”</string>
+
+    <!-- Detail -->
+    <string name="detail_ready_in">%1$d min</string>
+    <plurals name="detail_servings">
+        <item quantity="one">%1$d serving</item>
+        <item quantity="other">%1$d servings</item>
+    </plurals>
+    <string name="detail_health_score">Health score %1$d</string>
+    <string name="detail_ingredients">Ingredients</string>
+    <string name="detail_instructions">Instructions</string>
+    <string name="detail_no_instructions">No instructions available for this recipe.</string>
+    <string name="detail_source">View original recipe from %1$s</string>
+    <string name="detail_source_unknown">View original recipe</string>
+    <string name="detail_saved">Saved to favorites</string>
+    <string name="detail_unsaved">Removed from favorites</string>
+
+    <!-- Errors -->
+    <string name="error_network">Can’t reach Spoonacular. Check your connection.</string>
+    <string name="error_unauthorized">The Spoonacular API key is missing or invalid. Add spoonacular.apiKey to local.properties.</string>
+    <string name="error_quota">The daily Spoonacular quota is used up. Try again tomorrow.</string>
+    <string name="error_not_found">This recipe could not be found.</string>
+    <string name="error_server">Spoonacular is having problems. Try again later.</string>
+    <string name="error_unknown">Something went wrong.</string>
+</resources>

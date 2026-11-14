@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------------------
+# Kotlin Multiplatform (Android + iOS) — TheFoodHub
+# ---------------------------------------------------------------------------
+
+# --- Secrets / machine-local config -----------------------------------------
+# local.properties holds sdk.dir and spoonacular.apiKey; never commit it.
+local.properties
+*.keystore
+*.jks
+!debug.keystore
+google-services.json
+GoogleService-Info.plist
+*.env
+.env.*
+
+# --- Gradle -----------------------------------------------------------------
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+gradle-app.setting
+.gradletasknamecache
+
+# --- Kotlin -----------------------------------------------------------------
+# Kotlin daemon sessions, transformed metadata klibs, compiler caches.
+.kotlin/
+*.hprof
+kotlin-js-store/
+
+# --- Android ----------------------------------------------------------------
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+output.json
+release/
+lint-results*.xml
+lint-results*.html
+
+# --- Generated code ---------------------------------------------------------
+# Everything generated (Secrets.kt, KSP/Room output, BuildConfig, R) lives
+# under build/, which is ignored above. These catch generators that write
+# outside build/.
+**/generated/
+**/gen/
+*.kotlin_module
+
+# --- IntelliJ / Android Studio ----------------------------------------------
+# Ignore IDE state; keep only shared code style and inspection settings.
+*.iml
+*.ipr
+*.iws
+.idea/*
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+out/
+
+# --- Xcode / iOS ------------------------------------------------------------
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+iosApp/Pods/
+iosApp/Podfile.lock
+Carthage/Build/
+.swiftpm/
+*.xcworkspace/xcuserdata/
+# Shared.framework built by :shared:embedAndSignAppleFrameworkForXcode
+*.framework/
+*.xcframework/
+
+# --- OS / editors -----------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.fleet/
