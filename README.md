@@ -2,6 +2,10 @@
 
 A recipe app built on the [Spoonacular API](https://spoonacular.com/food-api), using Kotlin Multiplatform for shared logic and native UI on each platform: Jetpack Compose on Android, SwiftUI on iOS.
 
+## Demo
+
+▶️ [Watch the demo video](https://streamable.com/sw8b79)
+
 ## Setup
 
 1. Get a free API key at <https://spoonacular.com/food-api/console#Profile>.
