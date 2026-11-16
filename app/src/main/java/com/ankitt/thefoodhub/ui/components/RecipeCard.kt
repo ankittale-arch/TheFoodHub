@@ -3,6 +3,8 @@ package com.ankitt.thefoodhub.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -10,7 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.ankitt.thefoodhub.R
 import com.ankitt.thefoodhub.domain.model.RecipeSummary
+import com.ankitt.thefoodhub.ui.theme.FoodHubElevation
 
 @Composable
 fun RecipeCard(
@@ -34,8 +38,14 @@ fun RecipeCard(
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Extra line under the title, e.g. why a search result matched. */
+    footer: (@Composable () -> Unit)? = null,
 ) {
-    Card(onClick = onClick, modifier = modifier) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier,
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = FoodHubElevation.Card),
+    ) {
         Box {
             AsyncImage(
                 model = recipe.imageUrl,
@@ -64,6 +74,10 @@ fun RecipeCard(
                 minLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (footer != null) {
+                Spacer(Modifier.height(4.dp))
+                footer()
+            }
         }
     }
 }

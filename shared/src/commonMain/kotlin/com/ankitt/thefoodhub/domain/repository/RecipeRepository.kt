@@ -4,12 +4,13 @@ import com.ankitt.thefoodhub.core.Outcome
 import com.ankitt.thefoodhub.domain.model.PopularRecipe
 import com.ankitt.thefoodhub.domain.model.RecipeDetail
 import com.ankitt.thefoodhub.domain.model.RecipePage
+import com.ankitt.thefoodhub.domain.model.SearchCriteria
 import kotlinx.coroutines.flow.Flow
 
 interface RecipeRepository {
 
-    /** Network-only: results depend on the query and are cheap enough not to cache. */
-    suspend fun searchRecipes(query: String, offset: Int, pageSize: Int): Outcome<RecipePage>
+    /** Network-only: results depend on the criteria and are cheap enough not to cache. */
+    suspend fun searchRecipes(criteria: SearchCriteria, offset: Int, pageSize: Int): Outcome<RecipePage>
 
     /**
      * Random popular recipes for the home screen. Each call returns a new selection and costs quota,

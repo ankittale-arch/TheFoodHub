@@ -4,6 +4,11 @@ import com.ankitt.thefoodhub.core.DataError
 import com.ankitt.thefoodhub.core.Outcome
 import com.ankitt.thefoodhub.data.repository.RecipeRepositoryImpl
 import com.ankitt.thefoodhub.domain.model.InstructionStep
+import com.ankitt.thefoodhub.domain.model.Nutrient
+import com.ankitt.thefoodhub.domain.model.NutrientAmount
+import com.ankitt.thefoodhub.domain.model.RecipeMatch
+import com.ankitt.thefoodhub.domain.model.SearchCriteria
+import com.ankitt.thefoodhub.testutil.FILTERED_SEARCH_RESPONSE_JSON
 import com.ankitt.thefoodhub.testutil.FakeRecipeDao
 import com.ankitt.thefoodhub.testutil.FixedClock
 import com.ankitt.thefoodhub.domain.model.PopularRecipe
@@ -35,13 +40,37 @@ class RecipeRepositoryImplTest {
         val repo = repository(MockSpoonacular { respondJson(SEARCH_RESPONSE_JSON) })
 
         val page = assertIs<Outcome.Success<com.ankitt.thefoodhub.domain.model.RecipePage>>(
-            repo.searchRecipes("pasta", offset = 0, pageSize = 2),
+            repo.searchRecipes(SearchCriteria("pasta"), offset = 0, pageSize = 2),
         ).value
 
         assertEquals(2, page.nextOffset)
         assertEquals(86, page.totalResults)
         assertFalse(page.endReached)
         assertNull(page.recipes[1].imageUrl)
+    }
+
+    @Test
+    fun filteredSearchMapsMatchDetailsPerRecipe() = runTest {
+        val repo = repository(MockSpoonacular { respondJson(FILTERED_SEARCH_RESPONSE_JSON) })
+
+        val page = assertIs<Outcome.Success<com.ankitt.thefoodhub.domain.model.RecipePage>>(
+            repo.searchRecipes(SearchCriteria(ingredients = listOf("chicken")), offset = 0, pageSize = 20),
+        ).value
+
+        assertEquals(
+            mapOf(
+                638308 to RecipeMatch(
+                    usedIngredientCount = 2,
+                    missedIngredientCount = 3,
+                    // Sorted in Nutrient order; nutrients the app does not filter on are dropped.
+                    nutrients = listOf(
+                        NutrientAmount(Nutrient.CALORIES, 512.3),
+                        NutrientAmount(Nutrient.PROTEIN, 42.5),
+                    ),
+                ),
+            ),
+            page.matches,
+        )
     }
 
     @Test

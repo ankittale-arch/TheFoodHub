@@ -3,6 +3,10 @@ package com.ankitt.thefoodhub.feature.search
 import androidx.lifecycle.viewModelScope
 import com.ankitt.thefoodhub.core.Outcome
 import com.ankitt.thefoodhub.core.mvi.MviViewModel
+import com.ankitt.thefoodhub.domain.model.IngredientCatalog
+import com.ankitt.thefoodhub.domain.model.NutrientFilter
+import com.ankitt.thefoodhub.domain.model.NutrientRange
+import com.ankitt.thefoodhub.domain.model.SearchCriteria
 import com.ankitt.thefoodhub.domain.repository.FavoritesRepository
 import com.ankitt.thefoodhub.domain.repository.RecipeRepository
 import kotlinx.coroutines.Job
@@ -28,8 +32,15 @@ class SearchViewModel(
     override fun onIntent(intent: SearchIntent) {
         when (intent) {
             is SearchIntent.QueryChanged -> onQueryChanged(intent.query)
+            is SearchIntent.ApplyIngredients -> setIngredients(
+                intent.ingredients.fold(emptyList(), IngredientCatalog::add),
+            )
+            is SearchIntent.RemoveIngredient -> setIngredients(currentState.ingredients - intent.ingredient)
+            is SearchIntent.ApplyNutrients -> setNutrients(intent.filter)
+            is SearchIntent.RemoveNutrient -> setNutrients(currentState.nutrients.with(intent.nutrient, NutrientRange()))
+            SearchIntent.ClearFilters -> setFilters(emptyList(), NutrientFilter())
             SearchIntent.LoadNextPage -> loadNextPage()
-            SearchIntent.Retry -> search(currentState.query, debounce = false)
+            SearchIntent.Retry -> search(debounce = false)
             is SearchIntent.ToggleFavorite -> viewModelScope.launch {
                 favoritesRepository.toggleFavorite(intent.recipe)
             }
@@ -41,19 +52,30 @@ class SearchViewModel(
         val searchTermChanged = query.trim() != currentState.query.trim()
         updateState { copy(query = query) }
         // Typing a trailing space should not cost another API call.
-        if (searchTermChanged) search(query, debounce = true)
+        if (searchTermChanged) search(debounce = true)
     }
 
-    /** Cancels any in-flight request, so only the latest query's results reach the state. */
-    private fun search(query: String, debounce: Boolean) {
+    private fun setIngredients(ingredients: List<String>) = setFilters(ingredients, currentState.nutrients)
+
+    private fun setNutrients(nutrients: NutrientFilter) = setFilters(currentState.ingredients, nutrients)
+
+    /** Filter changes come from a deliberate tap, so they search without the typing debounce. */
+    private fun setFilters(ingredients: List<String>, nutrients: NutrientFilter) {
+        if (ingredients == currentState.ingredients && nutrients == currentState.nutrients) return
+        updateState { copy(ingredients = ingredients, nutrients = nutrients) }
+        search(debounce = false)
+    }
+
+    /** Searches for the current criteria, cancelling any in-flight request so only the latest results reach the state. */
+    private fun search(debounce: Boolean) {
         searchJob?.cancel()
         loadMoreJob?.cancel()
 
-        val term = query.trim()
-        if (term.isEmpty()) {
+        val criteria = currentState.criteria
+        if (criteria.isEmpty) {
             updateState {
                 copy(
-                    recipes = emptyList(), totalResults = 0, nextOffset = 0, endReached = false,
+                    recipes = emptyList(), matches = emptyMap(), totalResults = 0, nextOffset = 0, endReached = false,
                     isLoading = false, isLoadingMore = false, error = null, hasSearched = false,
                 )
             }
@@ -64,12 +86,13 @@ class SearchViewModel(
             if (debounce) delay(SEARCH_DEBOUNCE_MILLIS)
             updateState { copy(isLoading = true, isLoadingMore = false, error = null) }
 
-            when (val outcome = recipeRepository.searchRecipes(term, offset = 0, pageSize = PAGE_SIZE)) {
+            when (val outcome = recipeRepository.searchRecipes(criteria, offset = 0, pageSize = PAGE_SIZE)) {
                 is Outcome.Success -> {
                     val page = outcome.value
                     updateState {
                         copy(
                             recipes = page.recipes,
+                            matches = page.matches,
                             totalResults = page.totalResults,
                             nextOffset = page.nextOffset,
                             endReached = page.endReached,
@@ -80,8 +103,8 @@ class SearchViewModel(
                 }
                 is Outcome.Failure -> updateState {
                     copy(
-                        recipes = emptyList(), totalResults = 0, nextOffset = 0, endReached = false,
-                        isLoading = false, error = outcome.error, hasSearched = true,
+                        recipes = emptyList(), matches = emptyMap(), totalResults = 0, nextOffset = 0,
+                        endReached = false, isLoading = false, error = outcome.error, hasSearched = true,
                     )
                 }
             }
@@ -94,17 +117,18 @@ class SearchViewModel(
             state.recipes.isNotEmpty() && loadMoreJob?.isActive != true
         if (!canLoadMore) return
 
-        val term = state.query.trim()
+        val criteria: SearchCriteria = state.criteria
         loadMoreJob = viewModelScope.launch {
             updateState { copy(isLoadingMore = true) }
 
-            when (val outcome = recipeRepository.searchRecipes(term, offset = state.nextOffset, pageSize = PAGE_SIZE)) {
+            when (val outcome = recipeRepository.searchRecipes(criteria, offset = state.nextOffset, pageSize = PAGE_SIZE)) {
                 is Outcome.Success -> {
                     val page = outcome.value
                     updateState {
                         copy(
                             // Spoonacular can repeat items across pages; list keys must stay unique.
                             recipes = (recipes + page.recipes).distinctBy { it.id },
+                            matches = matches + page.matches,
                             totalResults = page.totalResults,
                             nextOffset = page.nextOffset,
                             endReached = page.endReached,

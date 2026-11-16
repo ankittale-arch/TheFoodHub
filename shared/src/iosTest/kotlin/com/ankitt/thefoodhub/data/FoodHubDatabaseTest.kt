@@ -16,6 +16,7 @@ import com.ankitt.thefoodhub.testutil.MockSpoonacular
 import com.ankitt.thefoodhub.testutil.RECIPE_INFORMATION_JSON
 import com.ankitt.thefoodhub.testutil.recipeSummary
 import com.ankitt.thefoodhub.testutil.respondJson
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
@@ -81,7 +82,9 @@ class FoodHubDatabaseTest {
     fun favoritesAreOrderedNewestFirstAndObservable() = runTest {
         val dao = db.favoriteDao()
 
-        dao.observeIsFavorite(2).test {
+        // Room re-runs the query after every write to the table, so the raw flow can repeat a value
+        // (writing recipe 1 re-emits "false" for recipe 2). FavoritesRepositoryImpl drops repeats the same way.
+        dao.observeIsFavorite(2).distinctUntilChanged().test {
             assertFalse(awaitItem())
 
             dao.upsert(FavoriteEntity(recipeId = 1, title = "A", imageUrl = null, savedAtEpochMillis = 10))

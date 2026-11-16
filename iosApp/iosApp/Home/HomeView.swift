@@ -73,7 +73,7 @@ struct HomeContent: View {
             .padding(.leading, 20)
             .padding(.trailing, 6)
             .frame(height: 60)
-            .background(HomePalette.field, in: Capsule())
+            .background { Capsule().fill(HomePalette.field).elevation(.field) }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Let’s cook something…")
@@ -91,6 +91,8 @@ struct HomeContent: View {
             }
             .padding(.horizontal, 20)
         }
+        // Lets the chips' shadows draw past the scroll view's edges.
+        .scrollClipDisabled()
     }
 
     private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -105,7 +107,7 @@ struct HomeContent: View {
             .foregroundStyle(selected ? .white : HomePalette.ink)
             .padding(.horizontal, 22)
             .frame(minHeight: 52)
-            .background(Capsule().fill(selected ? HomePalette.ink : HomePalette.chip))
+            .background(Capsule().fill(selected ? HomePalette.ink : HomePalette.chip).elevation(.chip))
     }
 
     private func dietsChip(_ state: HomeState) -> some View {

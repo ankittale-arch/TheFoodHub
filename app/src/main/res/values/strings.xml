@@ -37,8 +37,41 @@
     <!-- Search -->
     <string name="search_hint">Search recipes, e.g. pasta</string>
     <string name="search_empty_title">What are you cooking today?</string>
-    <string name="search_empty_body">Search by dish, ingredient or cuisine.</string>
+    <string name="search_empty_body">Search by dish, or filter by what’s in your kitchen and by nutrition.</string>
     <string name="search_no_results">No recipes found for “%1$s”.</string>
+    <string name="search_no_results_filters">No recipes match these filters.</string>
+    <string name="search_no_results_filters_body">Try removing an ingredient or loosening a nutrition limit.</string>
+
+    <!-- Search filters -->
+    <string name="search_filter_ingredients">Ingredients</string>
+    <string name="search_filter_nutrition">Nutrition</string>
+    <string name="search_filter_count">%1$s · %2$d</string>
+    <string name="search_clear_filters">Clear all</string>
+    <string name="search_remove_filter">Remove %1$s</string>
+    <string name="search_apply">Show recipes</string>
+    <string name="search_reset">Reset</string>
+    <string name="search_ingredients_title">What’s in your kitchen?</string>
+    <string name="search_ingredients_hint">Add an ingredient, e.g. chicken</string>
+    <string name="search_ingredients_add">Add ingredient</string>
+    <string name="search_ingredients_count">%1$d of %2$d ingredients</string>
+    <string name="search_nutrition_title">Nutrition per serving</string>
+    <string name="search_match_ingredients">%1$d used · %2$d missing</string>
+    <string name="nutrient_calories">Calories</string>
+    <string name="nutrient_protein">Protein</string>
+    <string name="nutrient_carbs">Carbs</string>
+    <string name="nutrient_fat">Fat</string>
+    <string name="nutrient_range_any">Any</string>
+    <string name="nutrient_range_at_least">≥ %1$d %2$s</string>
+    <string name="nutrient_range_at_most">≤ %1$d %2$s</string>
+    <string name="nutrient_range_between">%1$d–%2$d %3$s</string>
+    <string name="nutrient_amount_calories">%1$d kcal</string>
+    <string name="nutrient_amount_protein">%1$d g protein</string>
+    <string name="nutrient_amount_carbs">%1$d g carbs</string>
+    <string name="nutrient_amount_fat">%1$d g fat</string>
+    <string name="preset_high_protein">High protein</string>
+    <string name="preset_low_carb">Low carb</string>
+    <string name="preset_under_500_kcal">Under 500 kcal</string>
+    <string name="preset_low_fat">Low fat</string>
 
     <!-- Favorites -->
     <string name="favorites_empty_title">No favorites yet</string>

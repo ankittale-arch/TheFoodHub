@@ -10,6 +10,7 @@ import com.ankitt.thefoodhub.data.toPopularRecipe
 import com.ankitt.thefoodhub.domain.model.PopularRecipe
 import com.ankitt.thefoodhub.domain.model.RecipeDetail
 import com.ankitt.thefoodhub.domain.model.RecipePage
+import com.ankitt.thefoodhub.domain.model.SearchCriteria
 import com.ankitt.thefoodhub.domain.repository.RecipeRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -22,8 +23,8 @@ internal class RecipeRepositoryImpl(
     private val clock: Clock,
 ) : RecipeRepository {
 
-    override suspend fun searchRecipes(query: String, offset: Int, pageSize: Int): Outcome<RecipePage> =
-        api.searchRecipes(query = query, offset = offset, number = pageSize).map { it.toDomain() }
+    override suspend fun searchRecipes(criteria: SearchCriteria, offset: Int, pageSize: Int): Outcome<RecipePage> =
+        api.searchRecipes(criteria = criteria, offset = offset, number = pageSize).map { it.toDomain() }
 
     override suspend fun getRandomRecipes(
         count: Int,

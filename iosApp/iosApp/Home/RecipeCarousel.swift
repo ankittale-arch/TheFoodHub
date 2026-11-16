@@ -75,7 +75,7 @@ private struct RecipeSlide: View {
             .overlay(alignment: .bottom) { titleCard.padding(14) }
             .clipShape(shape)
             .overlay(shape.strokeBorder(.white.opacity(0.9), lineWidth: 3))
-            .background(shape.fill(HomePalette.pill))
+            .background(shape.fill(HomePalette.pill).elevation(.featuredCard))
             .contentShape(shape)
     }
 
@@ -95,7 +95,7 @@ private struct RecipeSlide: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background { RoundedRectangle(cornerRadius: 26, style: .continuous).fill(.white).elevation(.card) }
     }
 }
 

@@ -33,6 +33,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -48,6 +51,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ankitt.thefoodhub.R
+import com.ankitt.thefoodhub.domain.model.Nutrient
+import com.ankitt.thefoodhub.domain.model.NutrientAmount
+import com.ankitt.thefoodhub.domain.model.NutrientFilter
+import com.ankitt.thefoodhub.domain.model.NutrientRange
+import com.ankitt.thefoodhub.domain.model.RecipeMatch
 import com.ankitt.thefoodhub.domain.model.RecipeSummary
 import com.ankitt.thefoodhub.feature.search.SearchEffect
 import com.ankitt.thefoodhub.feature.search.SearchIntent
@@ -109,6 +117,7 @@ fun SearchScreen(
     onSearchFieldFocused: () -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
+    var openSheet by rememberSaveable { mutableStateOf<SearchSheet?>(null) }
     LaunchedEffect(focusSearchField) {
         if (focusSearchField) {
             focusRequester.requestFocus()
@@ -122,12 +131,18 @@ fun SearchScreen(
     ) { padding ->
         Column(Modifier.padding(padding)) {
             SearchField(
-                query = state.query,
+                initialQuery = state.query,
                 onQueryChange = { onIntent(SearchIntent.QueryChanged(it)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .focusRequester(focusRequester),
+            )
+            SearchFilterBar(
+                state = state,
+                onIntent = onIntent,
+                onOpenSheet = { openSheet = it },
+                modifier = Modifier.padding(bottom = 4.dp),
             )
             Box(Modifier.fillMaxSize()) {
                 SearchContent(state, onIntent, onRecipeClick)
@@ -137,20 +152,42 @@ fun SearchScreen(
             }
         }
     }
+
+    when (openSheet) {
+        SearchSheet.INGREDIENTS -> IngredientsSheet(
+            initial = state.ingredients,
+            onApply = { onIntent(SearchIntent.ApplyIngredients(it)) },
+            onDismiss = { openSheet = null },
+        )
+        SearchSheet.NUTRITION -> NutritionSheet(
+            initial = state.nutrients,
+            onApply = { onIntent(SearchIntent.ApplyNutrients(it)) },
+            onDismiss = { openSheet = null },
+        )
+        null -> Unit
+    }
 }
 
 @Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun SearchField(initialQuery: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier) {
     val keyboard = LocalSoftwareKeyboardController.current
+    // The field owns its text and reports each change. Feeding it `state.query` back from the
+    // ViewModel's StateFlow would lag a frame behind the keyboard, which can drop fast keystrokes.
+    // [initialQuery] only seeds it, e.g. when the screen is recreated.
+    var text by rememberSaveable { mutableStateOf(initialQuery) }
+    fun update(value: String) {
+        text = value
+        onQueryChange(value)
+    }
     OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
+        value = text,
+        onValueChange = ::update,
         modifier = modifier,
         placeholder = { Text(stringResource(R.string.search_hint)) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
+            if (text.isNotEmpty()) {
+                IconButton(onClick = { update("") }) {
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_clear_search))
                 }
             }
@@ -171,6 +208,10 @@ private fun SearchContent(
         state.recipes.isNotEmpty() -> RecipeGrid(state, onIntent, onRecipeClick)
         state.isLoading -> LoadingState()
         state.error != null -> ErrorState(state.error!!, onRetry = { onIntent(SearchIntent.Retry) })
+        state.hasSearched && state.hasFilters -> MessageState(
+            title = stringResource(R.string.search_no_results_filters),
+            body = stringResource(R.string.search_no_results_filters_body),
+        )
         state.hasSearched -> MessageState(title = stringResource(R.string.search_no_results, state.query.trim()))
         else -> MessageState(
             title = stringResource(R.string.search_empty_title),
@@ -197,11 +238,13 @@ private fun RecipeGrid(
         modifier = Modifier.fillMaxSize(),
     ) {
         items(state.recipes, key = { it.id }) { recipe ->
+            val match = state.matchFor(recipe.id)
             RecipeCard(
                 recipe = recipe,
                 isFavorite = state.isFavorite(recipe.id),
                 onClick = { onRecipeClick(recipe) },
                 onToggleFavorite = { onIntent(SearchIntent.ToggleFavorite(recipe)) },
+                footer = match?.let { { RecipeMatchText(it) } },
             )
         }
         if (state.isLoadingMore) {
@@ -243,7 +286,16 @@ private fun SearchScreenPreview() {
         SearchScreen(
             state = SearchState(
                 query = "pasta",
+                ingredients = listOf("chicken", "garlic"),
+                nutrients = NutrientFilter(calories = NutrientRange(max = 600)),
                 recipes = (1..6).map { RecipeSummary(it, "Pasta recipe number $it", null) },
+                matches = (1..6).associateWith {
+                    RecipeMatch(
+                        usedIngredientCount = 2,
+                        missedIngredientCount = it,
+                        nutrients = listOf(NutrientAmount(Nutrient.CALORIES, 480.0 + it * 10)),
+                    )
+                },
                 favoriteIds = setOf(2),
                 hasSearched = true,
             ),

@@ -9,6 +9,7 @@ import com.ankitt.thefoodhub.domain.model.PopularRecipe
 import com.ankitt.thefoodhub.domain.model.RecipeDetail
 import com.ankitt.thefoodhub.domain.model.RecipePage
 import com.ankitt.thefoodhub.domain.model.RecipeSummary
+import com.ankitt.thefoodhub.domain.model.SearchCriteria
 import com.ankitt.thefoodhub.domain.repository.FavoritesRepository
 import com.ankitt.thefoodhub.domain.repository.RecipeRepository
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +20,9 @@ import kotlinx.coroutines.flow.update
 
 data class RandomCall(val count: Int, val includeTags: List<String>, val excludeTags: List<String>)
 
-data class SearchCall(val query: String, val offset: Int, val pageSize: Int)
+data class SearchCall(val criteria: SearchCriteria, val offset: Int, val pageSize: Int) {
+    val query: String get() = criteria.query
+}
 
 class FakeRecipeRepository : RecipeRepository {
     val searchCalls = mutableListOf<SearchCall>()
@@ -29,8 +32,8 @@ class FakeRecipeRepository : RecipeRepository {
     val refreshCalls = mutableListOf<Int>()
     var onRefresh: suspend (Int) -> Outcome<Unit> = { Outcome.Success(Unit) }
 
-    override suspend fun searchRecipes(query: String, offset: Int, pageSize: Int): Outcome<RecipePage> {
-        val call = SearchCall(query, offset, pageSize)
+    override suspend fun searchRecipes(criteria: SearchCriteria, offset: Int, pageSize: Int): Outcome<RecipePage> {
+        val call = SearchCall(criteria, offset, pageSize)
         searchCalls += call
         return onSearch(call)
     }

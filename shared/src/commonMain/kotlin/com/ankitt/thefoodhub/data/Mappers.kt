@@ -10,8 +10,11 @@ import com.ankitt.thefoodhub.data.remote.dto.RecipeSummaryDto
 import com.ankitt.thefoodhub.data.remote.dto.SearchResponseDto
 import com.ankitt.thefoodhub.domain.model.Ingredient
 import com.ankitt.thefoodhub.domain.model.InstructionStep
+import com.ankitt.thefoodhub.domain.model.Nutrient
+import com.ankitt.thefoodhub.domain.model.NutrientAmount
 import com.ankitt.thefoodhub.domain.model.PopularRecipe
 import com.ankitt.thefoodhub.domain.model.RecipeDetail
+import com.ankitt.thefoodhub.domain.model.RecipeMatch
 import com.ankitt.thefoodhub.domain.model.RecipePage
 import com.ankitt.thefoodhub.domain.model.RecipeSummary
 import kotlin.math.roundToInt
@@ -22,7 +25,29 @@ internal fun SearchResponseDto.toDomain(): RecipePage = RecipePage(
     recipes = results.map { it.toDomain() },
     offset = offset,
     totalResults = totalResults,
+    matches = results.mapNotNull { dto -> dto.toMatch()?.let { dto.id to it } }.toMap(),
 )
+
+/** Null when the response has no match details, as for a name-only search. */
+internal fun RecipeSummaryDto.toMatch(): RecipeMatch? {
+    val nutrients = nutrition?.nutrients.orEmpty().mapNotNull { dto ->
+        nutrientForApiName(dto.name)?.let { NutrientAmount(it, dto.amount) }
+    }.sortedBy { it.nutrient.ordinal }
+    if (usedIngredientCount == null && missedIngredientCount == null && nutrients.isEmpty()) return null
+    return RecipeMatch(
+        usedIngredientCount = usedIngredientCount,
+        missedIngredientCount = missedIngredientCount,
+        nutrients = nutrients,
+    )
+}
+
+private fun nutrientForApiName(name: String): Nutrient? = when (name.lowercase()) {
+    "calories" -> Nutrient.CALORIES
+    "protein" -> Nutrient.PROTEIN
+    "carbohydrates", "carbs" -> Nutrient.CARBS
+    "fat" -> Nutrient.FAT
+    else -> null
+}
 
 internal fun RecipeSummaryDto.toDomain(): RecipeSummary =
     RecipeSummary(id = id, title = title, imageUrl = image?.takeIf { it.isNotBlank() })

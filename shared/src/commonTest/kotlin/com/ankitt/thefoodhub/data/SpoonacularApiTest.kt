@@ -3,6 +3,11 @@ package com.ankitt.thefoodhub.data
 import com.ankitt.thefoodhub.core.DataError
 import com.ankitt.thefoodhub.core.Outcome
 import com.ankitt.thefoodhub.data.remote.API_KEY_HEADER
+import com.ankitt.thefoodhub.data.remote.dto.SearchResponseDto
+import com.ankitt.thefoodhub.domain.model.NutrientFilter
+import com.ankitt.thefoodhub.domain.model.NutrientRange
+import com.ankitt.thefoodhub.domain.model.SearchCriteria
+import com.ankitt.thefoodhub.testutil.FILTERED_SEARCH_RESPONSE_JSON
 import com.ankitt.thefoodhub.testutil.MockSpoonacular
 import com.ankitt.thefoodhub.testutil.RANDOM_RECIPES_JSON
 import com.ankitt.thefoodhub.testutil.SEARCH_RESPONSE_JSON
@@ -22,7 +27,7 @@ class SpoonacularApiTest {
     fun searchSendsKeyAsHeaderAndParsesResults() = runTest {
         val mock = MockSpoonacular { respondJson(SEARCH_RESPONSE_JSON) }
 
-        val outcome = mock.api.searchRecipes(query = "garlic pasta", offset = 20, number = 10)
+        val outcome = mock.api.searchRecipes(SearchCriteria(query = "garlic pasta"), offset = 20, number = 10)
 
         val request = mock.requests.single()
         assertEquals("https://api.spoonacular.com/recipes/complexSearch", request.url.toString().substringBefore('?'))
@@ -36,6 +41,42 @@ class SpoonacularApiTest {
         assertEquals(86, page.totalResults)
         assertEquals(listOf(716429, 715538), page.results.map { it.id })
         assertNull(page.results[1].image)
+        // A name-only search must not pay for ingredient details.
+        assertNull(request.url.parameters["includeIngredients"])
+        assertNull(request.url.parameters["fillIngredients"])
+        assertNull(request.url.parameters["sort"])
+    }
+
+    @Test
+    fun ingredientAndNutrientFiltersBecomeComplexSearchParameters() = runTest {
+        val mock = MockSpoonacular { respondJson(FILTERED_SEARCH_RESPONSE_JSON) }
+        val criteria = SearchCriteria(
+            ingredients = listOf("chicken", "bell pepper"),
+            nutrients = NutrientFilter(
+                calories = NutrientRange(max = 600),
+                protein = NutrientRange(min = 30, max = 80),
+            ),
+        )
+
+        val outcome = mock.api.searchRecipes(criteria, offset = 0, number = 20)
+
+        val parameters = mock.requests.single().url.parameters
+        assertNull(parameters["query"], "a blank query must be left out")
+        assertEquals("chicken,bell pepper", parameters["includeIngredients"])
+        assertEquals("max-used-ingredients", parameters["sort"])
+        assertEquals("true", parameters["fillIngredients"])
+        assertEquals("true", parameters["ignorePantry"])
+        assertEquals("600", parameters["maxCalories"])
+        assertNull(parameters["minCalories"])
+        assertEquals("30", parameters["minProtein"])
+        assertEquals("80", parameters["maxProtein"])
+        assertNull(parameters["minCarbs"])
+        assertNull(parameters["maxFat"])
+
+        val result = assertIs<Outcome.Success<SearchResponseDto>>(outcome).value.results.first()
+        assertEquals(2, result.usedIngredientCount)
+        assertEquals(3, result.missedIngredientCount)
+        assertEquals(listOf("Protein", "Calories", "Vitamin C"), result.nutrition?.nutrients?.map { it.name })
     }
 
     @Test
@@ -94,13 +135,13 @@ class SpoonacularApiTest {
     fun malformedBodyIsASerializationError() = runTest {
         val mock = MockSpoonacular { respondJson("""{"results": "not a list"}""") }
 
-        assertEquals(Outcome.Failure(DataError.Serialization), mock.api.searchRecipes("x", 0, 10))
+        assertEquals(Outcome.Failure(DataError.Serialization), mock.api.searchRecipes(SearchCriteria("x"), 0, 10))
     }
 
     @Test
     fun transportFailureIsANetworkError() = runTest {
         val mock = MockSpoonacular { throw IOException("offline") }
 
-        assertEquals(Outcome.Failure(DataError.Network), mock.api.searchRecipes("x", 0, 10))
+        assertEquals(Outcome.Failure(DataError.Network), mock.api.searchRecipes(SearchCriteria("x"), 0, 10))
     }
 }

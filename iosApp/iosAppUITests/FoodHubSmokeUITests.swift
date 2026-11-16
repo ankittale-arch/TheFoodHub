@@ -21,9 +21,8 @@ final class FoodHubSmokeUITests: XCTestCase {
             XCTAssertTrue(app.buttons[chip].exists, "missing chip \(chip)")
         }
 
-        let sawOutcome = app.staticTexts[keyError].waitForExistence(timeout: 20)
-            || app.scrollViews.buttons.matching(NSPredicate(format: "label CONTAINS 'min'")).firstMatch.exists
-        XCTAssertTrue(sawOutcome, "Expected recipe cards or the API key error")
+        let recipeCard = app.scrollViews.buttons.matching(NSPredicate(format: "label CONTAINS 'min'")).firstMatch
+        XCTAssertTrue(waitForAny([recipeCard, app.staticTexts[keyError]], timeout: 20), "Expected recipe cards or the API key error")
     }
 
     @MainActor
@@ -39,10 +38,11 @@ final class FoodHubSmokeUITests: XCTestCase {
         XCTAssertTrue(searchField.waitForExistence(timeout: 5))
         searchField.typeText("pasta")
 
-        // Only look inside the results grid; the keyboard's suggestion bar can also say "pasta".
-        let firstResult = app.scrollViews.firstMatch.buttons.firstMatch
-        let sawOutcome = app.staticTexts[keyError].waitForExistence(timeout: 20) || firstResult.waitForExistence(timeout: 1)
-        XCTAssertTrue(sawOutcome, "Expected search results or the API key error")
+        XCTAssertEqual(searchField.value as? String, "pasta", "The search field dropped keystrokes")
+
+        // Look up the grid by identifier: `scrollViews.firstMatch` can be the keyboard's suggestion bar.
+        let firstResult = app.scrollViews["searchResults"].buttons.firstMatch
+        XCTAssertTrue(waitForAny([firstResult, app.staticTexts[keyError]], timeout: 20), "Expected search results or the API key error")
     }
 
     @MainActor
@@ -53,5 +53,17 @@ final class FoodHubSmokeUITests: XCTestCase {
         app.buttons["Favorites"].tap()
 
         XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 10))
+    }
+
+    /// Waits until any of `elements` exists. Unlike chaining `waitForExistence` calls, this returns
+    /// as soon as one outcome appears instead of sitting through the timeout of the one that never comes.
+    @MainActor
+    private func waitForAny(_ elements: [XCUIElement], timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if elements.contains(where: { $0.exists }) { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        } while Date() < deadline
+        return false
     }
 }

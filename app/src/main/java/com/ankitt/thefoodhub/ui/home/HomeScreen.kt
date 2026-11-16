@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -78,6 +79,7 @@ import com.ankitt.thefoodhub.feature.home.HomeIntent
 import com.ankitt.thefoodhub.feature.home.HomeState
 import com.ankitt.thefoodhub.feature.home.HomeViewModel
 import com.ankitt.thefoodhub.ui.components.messageRes
+import com.ankitt.thefoodhub.ui.theme.FoodHubElevation
 import com.ankitt.thefoodhub.ui.theme.HomePalette
 import com.ankitt.thefoodhub.ui.theme.TheFoodHubTheme
 import org.koin.androidx.compose.koinViewModel
@@ -168,7 +170,7 @@ private fun HomeSearchBar(onClick: () -> Unit, modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .height(60.dp)
-            .clip(CircleShape)
+            .shadow(FoodHubElevation.Field, CircleShape)
             .background(HomePalette.Field)
             .clickable(onClick = onClick)
             .semantics(mergeDescendants = true) {
@@ -246,7 +248,7 @@ private fun CategoryChip(@StringRes labelRes: Int, selected: Boolean, onClick: (
     Box(
         Modifier
             .heightIn(min = 52.dp)
-            .clip(CircleShape)
+            .shadow(FoodHubElevation.Chip, CircleShape)
             .background(if (selected) HomePalette.Ink else HomePalette.Chip)
             .clickable(onClick = onClick)
             .semantics {
@@ -353,7 +355,7 @@ private fun RecipeSlide(recipe: PopularRecipe, onClick: () -> Unit, modifier: Mo
     Box(
         modifier
             .fillMaxSize()
-            .clip(shape)
+            .shadow(FoodHubElevation.FeaturedCard, shape)
             .border(3.dp, HomePalette.SlideBorder, shape)
             .background(HomePalette.Pill)
             .clickable(onClick = onClick),
@@ -392,7 +394,7 @@ private fun RecipeSlide(recipe: PopularRecipe, onClick: () -> Unit, modifier: Mo
                 .align(Alignment.BottomCenter)
                 .padding(14.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(26.dp))
+                .shadow(FoodHubElevation.Card, RoundedCornerShape(26.dp))
                 .background(HomePalette.Card)
                 .padding(horizontal = 18.dp, vertical = 16.dp),
         ) {

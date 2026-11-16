@@ -4,6 +4,8 @@ import com.ankitt.thefoodhub.core.Outcome
 import com.ankitt.thefoodhub.data.remote.dto.RandomRecipesResponseDto
 import com.ankitt.thefoodhub.data.remote.dto.RecipeInformationDto
 import com.ankitt.thefoodhub.data.remote.dto.SearchResponseDto
+import com.ankitt.thefoodhub.domain.model.Nutrient
+import com.ankitt.thefoodhub.domain.model.SearchCriteria
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -14,10 +16,27 @@ import io.ktor.client.request.parameter
  */
 internal class SpoonacularApi(private val client: HttpClient) {
 
-    suspend fun searchRecipes(query: String, offset: Int, number: Int): Outcome<SearchResponseDto> =
+    /**
+     * Name, ingredient and nutrient search all go through complexSearch, which combines them and
+     * pages with `offset`. Parameters for unused filters are left out.
+     */
+    suspend fun searchRecipes(criteria: SearchCriteria, offset: Int, number: Int): Outcome<SearchResponseDto> =
         safeApiCall {
             client.get("recipes/complexSearch") {
-                parameter("query", query)
+                criteria.query.trim().takeIf { it.isNotEmpty() }?.let { parameter("query", it) }
+                if (criteria.ingredients.isNotEmpty()) {
+                    parameter("includeIngredients", criteria.ingredients.joinToString(","))
+                    parameter("sort", "max-used-ingredients")
+                    // Adds used/missed ingredient counts to each result, for a small extra cost per result.
+                    parameter("fillIngredients", true)
+                    // Salt, water, flour and the like should not count as missing.
+                    parameter("ignorePantry", true)
+                }
+                criteria.nutrients.activeNutrients.forEach { nutrient ->
+                    val range = criteria.nutrients.range(nutrient)
+                    range.min?.let { parameter("min${nutrient.apiSuffix}", it) }
+                    range.max?.let { parameter("max${nutrient.apiSuffix}", it) }
+                }
                 parameter("offset", offset)
                 parameter("number", number)
             }
@@ -49,3 +68,12 @@ internal class SpoonacularApi(private val client: HttpClient) {
             }
         }
 }
+
+/** The name complexSearch uses in its `min…` / `max…` parameters. */
+private val Nutrient.apiSuffix: String
+    get() = when (this) {
+        Nutrient.CALORIES -> "Calories"
+        Nutrient.PROTEIN -> "Protein"
+        Nutrient.CARBS -> "Carbs"
+        Nutrient.FAT -> "Fat"
+    }

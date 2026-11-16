@@ -3,6 +3,12 @@ package com.ankitt.thefoodhub.feature
 import app.cash.turbine.test
 import com.ankitt.thefoodhub.core.DataError
 import com.ankitt.thefoodhub.core.Outcome
+import com.ankitt.thefoodhub.domain.model.Nutrient
+import com.ankitt.thefoodhub.domain.model.NutrientFilter
+import com.ankitt.thefoodhub.domain.model.NutrientPreset
+import com.ankitt.thefoodhub.domain.model.NutrientRange
+import com.ankitt.thefoodhub.domain.model.RecipeMatch
+import com.ankitt.thefoodhub.domain.model.SearchCriteria
 import com.ankitt.thefoodhub.feature.search.SearchEffect
 import com.ankitt.thefoodhub.feature.search.SearchIntent
 import com.ankitt.thefoodhub.feature.search.SearchViewModel
@@ -43,7 +49,7 @@ class SearchViewModelTest : MainDispatcherTest() {
         viewModel.onIntent(SearchIntent.QueryChanged("pasta"))
         advanceUntilIdle()
 
-        assertEquals(listOf(SearchCall("pasta", offset = 0, pageSize = PAGE_SIZE)), recipes.searchCalls)
+        assertEquals(listOf(SearchCall(SearchCriteria("pasta"), offset = 0, pageSize = PAGE_SIZE)), recipes.searchCalls)
         with(viewModel.state.value) {
             assertEquals(listOf(1, 2, 3), this.recipes.map { it.id })
             assertTrue(endReached)
@@ -179,6 +185,128 @@ class SearchViewModelTest : MainDispatcherTest() {
         advanceUntilIdle()
 
         assertEquals(listOf(1, 2), viewModel.state.value.recipes.map { it.id })
+    }
+
+    @Test
+    fun applyingIngredientsSearchesWithoutTheDebounceAndNormalizes() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(SearchIntent.ApplyIngredients(listOf(" Chicken ", "chicken", "", "Bell  Pepper")))
+        runCurrent()
+
+        assertEquals(
+            listOf(SearchCall(SearchCriteria(ingredients = listOf("chicken", "bell pepper")), 0, PAGE_SIZE)),
+            recipes.searchCalls,
+        )
+        assertEquals(listOf("chicken", "bell pepper"), viewModel.state.value.ingredients)
+    }
+
+    @Test
+    fun filtersCombineWithTheTypedQuery() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onIntent(SearchIntent.QueryChanged("pasta "))
+        advanceUntilIdle()
+
+        viewModel.onIntent(SearchIntent.ApplyIngredients(listOf("chicken")))
+        viewModel.onIntent(SearchIntent.ApplyNutrients(NutrientPreset.UNDER_500_KCAL.filter))
+        advanceUntilIdle()
+
+        assertEquals(
+            SearchCriteria(
+                query = "pasta",
+                ingredients = listOf("chicken"),
+                nutrients = NutrientFilter(calories = NutrientRange(max = 500)),
+            ),
+            recipes.searchCalls.last().criteria,
+        )
+        assertTrue(viewModel.state.value.hasFilters)
+    }
+
+    @Test
+    fun applyingAFilterDuringTheDebounceSendsOneRequestWithBoth() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(SearchIntent.QueryChanged("soup"))
+        advanceTimeBy(SEARCH_DEBOUNCE_MILLIS / 2)
+        viewModel.onIntent(SearchIntent.ApplyIngredients(listOf("tomato")))
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(SearchCriteria(query = "soup", ingredients = listOf("tomato"))),
+            recipes.searchCalls.map { it.criteria },
+        )
+    }
+
+    @Test
+    fun reapplyingTheSameFiltersDoesNotSearchAgain() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onIntent(SearchIntent.ApplyIngredients(listOf("egg")))
+        advanceUntilIdle()
+
+        viewModel.onIntent(SearchIntent.ApplyIngredients(listOf("Egg")))
+        viewModel.onIntent(SearchIntent.ApplyNutrients(NutrientFilter()))
+        advanceUntilIdle()
+
+        assertEquals(1, recipes.searchCalls.size)
+    }
+
+    @Test
+    fun removingOneNutrientKeepsTheOthers() = runTest {
+        val viewModel = createViewModel()
+        val filter = NutrientFilter(protein = NutrientRange(min = 30), carbs = NutrientRange(max = 20))
+        viewModel.onIntent(SearchIntent.ApplyNutrients(filter))
+        advanceUntilIdle()
+
+        viewModel.onIntent(SearchIntent.RemoveNutrient(Nutrient.PROTEIN))
+        advanceUntilIdle()
+
+        assertEquals(NutrientFilter(carbs = NutrientRange(max = 20)), viewModel.state.value.nutrients)
+        assertEquals(2, recipes.searchCalls.size)
+    }
+
+    @Test
+    fun clearingTheLastFilterWithoutAQueryResetsWithoutCallingTheApi() = runTest {
+        recipes.onSearch = { Outcome.Success(recipePage(1..5)) }
+        val viewModel = createViewModel()
+        viewModel.onIntent(SearchIntent.ApplyIngredients(listOf("rice", "egg")))
+        advanceUntilIdle()
+
+        viewModel.onIntent(SearchIntent.RemoveIngredient("rice"))
+        advanceUntilIdle()
+        assertEquals(listOf("egg"), recipes.searchCalls.last().criteria.ingredients)
+
+        viewModel.onIntent(SearchIntent.ClearFilters)
+        advanceUntilIdle()
+
+        assertEquals(2, recipes.searchCalls.size)
+        with(viewModel.state.value) {
+            assertTrue(this.recipes.isEmpty())
+            assertFalse(hasSearched)
+            assertFalse(hasFilters)
+        }
+    }
+
+    @Test
+    fun matchesAreKeptAndMergedAcrossPages() = runTest {
+        recipes.onSearch = { call ->
+            val ids = if (call.offset == 0) 1..20 else 21..22
+            Outcome.Success(
+                recipePage(ids, offset = call.offset, totalResults = 22).copy(
+                    matches = ids.associateWith { RecipeMatch(usedIngredientCount = 1, missedIngredientCount = it) },
+                ),
+            )
+        }
+        val viewModel = createViewModel()
+        viewModel.onIntent(SearchIntent.ApplyIngredients(listOf("egg")))
+        advanceUntilIdle()
+        viewModel.onIntent(SearchIntent.LoadNextPage)
+        advanceUntilIdle()
+
+        assertEquals(listOf("egg"), recipes.searchCalls.last().criteria.ingredients)
+        with(viewModel.state.value) {
+            assertEquals(22, matches.size)
+            assertEquals(21, matchFor(21)?.missedIngredientCount)
+        }
     }
 
     @Test

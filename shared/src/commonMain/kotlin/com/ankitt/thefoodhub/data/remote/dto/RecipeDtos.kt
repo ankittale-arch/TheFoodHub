@@ -21,6 +21,24 @@ internal data class RecipeSummaryDto(
     val id: Int,
     val title: String,
     val image: String? = null,
+    /** Only with `fillIngredients=true`. */
+    val usedIngredientCount: Int? = null,
+    val missedIngredientCount: Int? = null,
+    /** Only when the search had nutrient filters; lists the filtered nutrients. */
+    val nutrition: SearchNutritionDto? = null,
+)
+
+@Serializable
+internal data class SearchNutritionDto(
+    val nutrients: List<NutrientDto> = emptyList(),
+)
+
+@Serializable
+internal data class NutrientDto(
+    /** e.g. "Calories", "Protein", "Carbohydrates", "Fat". */
+    val name: String,
+    val amount: Double,
+    val unit: String? = null,
 )
 
 @Serializable

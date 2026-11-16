@@ -49,6 +49,8 @@ struct FavoriteButton: View {
 struct RecipeCard: View {
     let recipe: RecipeSummary
     let isFavorite: Bool
+    /// Extra line under the title, e.g. why a search result matched.
+    var footer: String?
     let onToggleFavorite: () -> Void
 
     var body: some View {
@@ -60,14 +62,25 @@ struct RecipeCard: View {
                 .overlay(alignment: .topTrailing) {
                     FavoriteButton(isFavorite: isFavorite, action: onToggleFavorite).padding(6)
                 }
-            Text(recipe.title)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(2, reservesSpace: true)
-                .multilineTextAlignment(.leading)
-                .padding(10)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(recipe.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2, reservesSpace: true)
+                    .multilineTextAlignment(.leading)
+                if let footer {
+                    Text(footer)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.accentColor)
+                        .lineLimit(2)
+                }
+            }
+            .padding(10)
         }
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        // Behind the clipped card, so the clip does not cut off the shadow.
+        .background {
+            RoundedRectangle(cornerRadius: 12).fill(.background.secondary).elevation(.card)
+        }
     }
 }
 

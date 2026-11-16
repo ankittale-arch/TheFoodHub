@@ -12,6 +12,8 @@ data class RecipePage(
     val recipes: List<RecipeSummary>,
     val offset: Int,
     val totalResults: Int,
+    /** Why each recipe matched, keyed by recipe id. Empty for a name-only search. */
+    val matches: Map<Int, RecipeMatch> = emptyMap(),
 ) {
     val nextOffset: Int get() = offset + recipes.size
 

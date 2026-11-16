@@ -81,6 +81,28 @@ val SEARCH_RESPONSE_JSON = """
     }
 """.trimIndent()
 
+/** complexSearch with includeIngredients, fillIngredients and nutrient filters. */
+val FILTERED_SEARCH_RESPONSE_JSON = """
+    {
+      "results": [
+        {
+          "id": 638308, "title": "Chicken Fajitas", "image": "https://img.spoonacular.com/recipes/638308-312x231.jpg",
+          "usedIngredientCount": 2, "missedIngredientCount": 3,
+          "usedIngredients": [ { "id": 5006, "name": "chicken" } ],
+          "nutrition": { "nutrients": [
+            { "name": "Protein", "amount": 42.5, "unit": "g" },
+            { "name": "Calories", "amount": 512.3, "unit": "kcal" },
+            { "name": "Vitamin C", "amount": 12.0, "unit": "mg" }
+          ] }
+        },
+        { "id": 715538, "title": "Bruschetta", "image": null }
+      ],
+      "offset": 0,
+      "number": 2,
+      "totalResults": 2
+    }
+""".trimIndent()
+
 val RANDOM_RECIPES_JSON = """
     {
       "recipes": [
