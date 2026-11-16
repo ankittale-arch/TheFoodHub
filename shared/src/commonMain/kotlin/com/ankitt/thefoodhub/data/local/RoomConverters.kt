@@ -23,6 +23,12 @@ class RoomConverters {
     @ColumnTypeConverter
     fun jsonToSteps(value: String): List<StoredStep> = json.decodeFromString(value)
 
+    @ColumnTypeConverter
+    fun wineBottleToJson(value: StoredWineBottle?): String? = value?.let { json.encodeToString(it) }
+
+    @ColumnTypeConverter
+    fun jsonToWineBottle(value: String?): StoredWineBottle? = value?.let { json.decodeFromString(it) }
+
     private companion object {
         val json = Json { ignoreUnknownKeys = true }
     }

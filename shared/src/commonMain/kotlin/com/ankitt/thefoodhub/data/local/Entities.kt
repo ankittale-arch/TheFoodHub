@@ -48,3 +48,26 @@ data class FavoriteEntity(
     val imageUrl: String?,
     val savedAtEpochMillis: Long,
 )
+
+/**
+ * A cached wine pairing, keyed by the food it was looked up for. A row with no wines and a blank
+ * description records that Spoonacular has no pairing, so that answer is not paid for again.
+ */
+@Entity(tableName = "wine_pairings")
+data class WinePairingEntity(
+    @PrimaryKey val food: String,
+    val wines: List<String>,
+    val description: String,
+    val suggestedBottle: StoredWineBottle?,
+    val cachedAtEpochMillis: Long,
+)
+
+@Serializable
+data class StoredWineBottle(
+    val title: String,
+    val price: String?,
+    val imageUrl: String?,
+    val rating: Double?,
+    val ratingCount: Int?,
+    val link: String?,
+)

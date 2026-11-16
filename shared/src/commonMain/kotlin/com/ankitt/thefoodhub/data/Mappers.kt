@@ -4,10 +4,13 @@ import com.ankitt.thefoodhub.data.local.FavoriteEntity
 import com.ankitt.thefoodhub.data.local.RecipeEntity
 import com.ankitt.thefoodhub.data.local.StoredIngredient
 import com.ankitt.thefoodhub.data.local.StoredStep
+import com.ankitt.thefoodhub.data.local.StoredWineBottle
+import com.ankitt.thefoodhub.data.local.WinePairingEntity
 import com.ankitt.thefoodhub.data.remote.dto.INGREDIENT_IMAGE_BASE_URL
 import com.ankitt.thefoodhub.data.remote.dto.RecipeInformationDto
 import com.ankitt.thefoodhub.data.remote.dto.RecipeSummaryDto
 import com.ankitt.thefoodhub.data.remote.dto.SearchResponseDto
+import com.ankitt.thefoodhub.data.remote.dto.WinePairingDto
 import com.ankitt.thefoodhub.domain.model.Ingredient
 import com.ankitt.thefoodhub.domain.model.InstructionStep
 import com.ankitt.thefoodhub.domain.model.Nutrient
@@ -17,6 +20,8 @@ import com.ankitt.thefoodhub.domain.model.RecipeDetail
 import com.ankitt.thefoodhub.domain.model.RecipeMatch
 import com.ankitt.thefoodhub.domain.model.RecipePage
 import com.ankitt.thefoodhub.domain.model.RecipeSummary
+import com.ankitt.thefoodhub.domain.model.WineBottle
+import com.ankitt.thefoodhub.domain.model.WinePairing
 import kotlin.math.roundToInt
 
 // Remote → domain
@@ -59,11 +64,107 @@ internal fun RecipeInformationDto.toPopularRecipe(): PopularRecipe = PopularReci
     readyInMinutes = readyInMinutes,
     likes = aggregateLikes,
     rating = spoonacularScore?.toFiveStarRating(),
+    winePairingFood = WinePairingFoods.forRecipe(
+        title = title,
+        ingredientNames = extendedIngredients.mapNotNull { it.name },
+        cuisines = cuisines,
+        dishTypes = dishTypes,
+    ),
 )
 
 /** 0–100 → 0.0–5.0 with one decimal, e.g. 96.0 → 4.8. */
 internal fun Double.toFiveStarRating(): Double =
     (coerceIn(0.0, 100.0) / 20.0 * 10).roundToInt() / 10.0
+
+// Wine pairing: remote → local → domain
+
+internal fun WinePairingDto.toEntity(food: String, cachedAtEpochMillis: Long): WinePairingEntity = WinePairingEntity(
+    food = food,
+    wines = pairedWines.map { it.trim() }.filter { it.isNotEmpty() },
+    description = pairingText.trim(),
+    suggestedBottle = productMatches.firstOrNull()?.let { product ->
+        StoredWineBottle(
+            title = product.title,
+            price = product.price?.takeIf { it.isNotBlank() },
+            imageUrl = product.imageUrl?.takeIf { it.isNotBlank() },
+            rating = product.averageRating?.let { (it.coerceIn(0.0, 1.0) * 5 * 10).roundToInt() / 10.0 },
+            ratingCount = product.ratingCount?.roundToInt(),
+            link = product.link?.takeIf { it.isNotBlank() },
+        )
+    },
+    cachedAtEpochMillis = cachedAtEpochMillis,
+)
+
+/** Null when the row records that Spoonacular has no pairing for the food. */
+internal fun WinePairingEntity.toDomain(): WinePairing? {
+    if (wines.isEmpty() && description.isBlank()) return null
+    return WinePairing(
+        food = food,
+        wines = wines.toDisplayedWines(),
+        explanation = description.withoutCategoryLabelSentence(),
+        suggestedBottle = suggestedBottle?.let {
+            WineBottle(
+                title = it.title,
+                // Normalised on read, so rows cached before this formatting existed display the same.
+                price = it.price?.toTwoDecimalPrice(),
+                imageUrl = it.imageUrl,
+                rating = it.rating,
+                ratingCount = it.ratingCount,
+                link = it.link,
+            )
+        },
+    )
+}
+
+private val priceRegex = Regex("""^(\D*)(\d+)(?:\.(\d{1,2}))?$""")
+
+/** Spoonacular sends prices such as "$89.0"; shows them as "$89.00". Anything else is kept as sent. */
+internal fun String.toTwoDecimalPrice(): String {
+    val match = priceRegex.matchEntire(trim()) ?: return this
+    val (currency, whole, cents) = match.destructured
+    return "$currency$whole.${cents.padEnd(2, '0')}"
+}
+
+/**
+ * Labels Spoonacular sometimes lists among the wines, e.g. for "chocolate":
+ * "wine, alcoholic drink, ingredient, food product category, madeira, …".
+ */
+private val wineCategoryLabels = setOf(
+    "wine", "alcoholic drink", "drink", "beverage", "ingredient", "food product category", "menu item type",
+)
+
+/** Broad styles that say less than a named wine, so they are listed after named ones. */
+private val genericWineStyles = setOf("red wine", "white wine", "rose wine", "rosé wine", "dessert wine", "sparkling wine")
+
+internal const val MAX_DISPLAYED_WINES = 3
+
+/** Labels that only appear in the explanation when Spoonacular wrote it from [wineCategoryLabels]. */
+private val categoryLabelRegex = Regex("""\b(alcoholic drink|food product category|menu item type|ingredient)\b""", RegexOption.IGNORE_CASE)
+
+/**
+ * Spoonacular builds its first sentence from the wine list, so category labels leak into it:
+ * "White Wine, Alcoholic Drink, and Ingredient are great choices for Chicken. White meat is…".
+ * Drops that sentence when it has such labels and keeps the rest.
+ */
+internal fun String.withoutCategoryLabelSentence(): String {
+    val text = trim()
+    val firstSentenceEnd = text.indexOf(". ").takeIf { it >= 0 } ?: return text
+    val firstSentence = text.substring(0, firstSentenceEnd)
+    return if (categoryLabelRegex.containsMatchIn(firstSentence)) text.substring(firstSentenceEnd + 2).trim() else text
+}
+
+/** Cleans Spoonacular's wine list for display: no category labels, named wines first, at most [MAX_DISPLAYED_WINES]. */
+internal fun List<String>.toDisplayedWines(): List<String> =
+    map { it.trim().lowercase() }
+        .filter { it.isNotEmpty() && it !in wineCategoryLabels }
+        .distinct()
+        .sortedBy { it in genericWineStyles }
+        .take(MAX_DISPLAYED_WINES)
+        .map { it.toTitleCase() }
+
+/** "pinot noir" → "Pinot Noir". */
+private fun String.toTitleCase(): String =
+    split(' ').joinToString(" ") { word -> word.replaceFirstChar { it.uppercaseChar() } }
 
 // Remote → local
 

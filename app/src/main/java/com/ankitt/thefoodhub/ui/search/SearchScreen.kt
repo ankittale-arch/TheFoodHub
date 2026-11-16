@@ -45,6 +45,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,7 +63,7 @@ import com.ankitt.thefoodhub.feature.search.SearchIntent
 import com.ankitt.thefoodhub.feature.search.SearchState
 import com.ankitt.thefoodhub.feature.search.SearchViewModel
 import com.ankitt.thefoodhub.ui.components.ErrorState
-import com.ankitt.thefoodhub.ui.components.LoadingState
+import com.ankitt.thefoodhub.ui.components.FoodLoadingState
 import com.ankitt.thefoodhub.ui.components.MessageState
 import com.ankitt.thefoodhub.ui.components.ObserveEffects
 import com.ankitt.thefoodhub.ui.components.RecipeCard
@@ -133,6 +134,7 @@ fun SearchScreen(
             SearchField(
                 initialQuery = state.query,
                 onQueryChange = { onIntent(SearchIntent.QueryChanged(it)) },
+                onSubmit = { onIntent(SearchIntent.Submit) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -169,7 +171,12 @@ fun SearchScreen(
 }
 
 @Composable
-private fun SearchField(initialQuery: String, onQueryChange: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun SearchField(
+    initialQuery: String,
+    onQueryChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val keyboard = LocalSoftwareKeyboardController.current
     // The field owns its text and reports each change. Feeding it `state.query` back from the
     // ViewModel's StateFlow would lag a frame behind the keyboard, which can drop fast keystrokes.
@@ -194,7 +201,12 @@ private fun SearchField(initialQuery: String, onQueryChange: (String) -> Unit, m
         },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+        keyboardActions = KeyboardActions(
+            onSearch = {
+                keyboard?.hide()
+                onSubmit()
+            },
+        ),
     )
 }
 
@@ -206,8 +218,16 @@ private fun SearchContent(
 ) {
     when {
         state.recipes.isNotEmpty() -> RecipeGrid(state, onIntent, onRecipeClick)
-        state.isLoading -> LoadingState()
+        state.isLoading -> FoodLoadingState(stringResource(R.string.search_loading))
         state.error != null -> ErrorState(state.error!!, onRetry = { onIntent(SearchIntent.Retry) })
+        state.isQueryTooShort -> MessageState(
+            title = stringResource(R.string.search_keep_typing_title),
+            body = pluralStringResource(
+                R.plurals.search_keep_typing_body,
+                SearchState.MIN_QUERY_LENGTH,
+                SearchState.MIN_QUERY_LENGTH,
+            ),
+        )
         state.hasSearched && state.hasFilters -> MessageState(
             title = stringResource(R.string.search_no_results_filters),
             body = stringResource(R.string.search_no_results_filters_body),

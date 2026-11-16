@@ -11,6 +11,15 @@ data class SearchCriteria(
     val nutrients: NutrientFilter = NutrientFilter(),
 ) {
     val isEmpty: Boolean get() = query.isBlank() && ingredients.isEmpty() && nutrients.isEmpty
+
+    companion object {
+        /**
+         * The query as Spoonacular sees it: trimmed, lowercase, single spaces. Spoonacular ignores
+         * case and spacing, so "Pasta " and "pasta" are one search and should cost one request.
+         */
+        fun normalizeQuery(text: String): String =
+            text.trim().lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
+    }
 }
 
 /**

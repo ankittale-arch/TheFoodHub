@@ -321,4 +321,106 @@ class SearchViewModelTest : MainDispatcherTest() {
 
         assertEquals(setOf(7, 8), viewModel.state.value.favoriteIds)
     }
+
+    // Keeping typing from costing quota
+
+    @Test
+    fun oneOrTwoLettersDoNotSearchAndAskForMore() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(SearchIntent.QueryChanged("pa"))
+        advanceUntilIdle()
+
+        assertTrue(recipes.searchCalls.isEmpty())
+        assertTrue(viewModel.state.value.isQueryTooShort)
+    }
+
+    @Test
+    fun deletingBackToTwoLettersClearsTheResultsWithoutACall() = runTest {
+        recipes.onSearch = { Outcome.Success(recipePage(1..3)) }
+        val viewModel = createViewModel()
+        viewModel.onIntent(SearchIntent.QueryChanged("pasta"))
+        advanceUntilIdle()
+
+        viewModel.onIntent(SearchIntent.QueryChanged("pa"))
+        advanceUntilIdle()
+
+        assertEquals(1, recipes.searchCalls.size)
+        assertTrue(viewModel.state.value.recipes.isEmpty())
+        assertTrue(viewModel.state.value.isQueryTooShort)
+    }
+
+    @Test
+    fun changingOnlyCaseOrSpacingDoesNotSearchAgain() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onIntent(SearchIntent.QueryChanged("Chicken curry"))
+        advanceUntilIdle()
+
+        viewModel.onIntent(SearchIntent.QueryChanged("chicken  curry"))
+        viewModel.onIntent(SearchIntent.QueryChanged(" CHICKEN curry "))
+        advanceUntilIdle()
+
+        assertEquals(listOf("chicken curry"), recipes.searchCalls.map { it.query })
+    }
+
+    @Test
+    fun returningToTheShownQueryBeforeThePauseDoesNotSearch() = runTest {
+        recipes.onSearch = { Outcome.Success(recipePage(1..3)) }
+        val viewModel = createViewModel()
+        viewModel.onIntent(SearchIntent.QueryChanged("pasta"))
+        advanceUntilIdle()
+
+        viewModel.onIntent(SearchIntent.QueryChanged("pastas"))
+        advanceTimeBy(SEARCH_DEBOUNCE_MILLIS / 2)
+        viewModel.onIntent(SearchIntent.QueryChanged("pasta"))
+        advanceUntilIdle()
+
+        assertEquals(1, recipes.searchCalls.size)
+        assertEquals(listOf(1, 2, 3), viewModel.state.value.recipes.map { it.id })
+    }
+
+    @Test
+    fun theSearchKeySearchesAtOnceAndOnlyOnce() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(SearchIntent.QueryChanged("soup"))
+        viewModel.onIntent(SearchIntent.Submit)
+        runCurrent()
+        assertEquals(1, recipes.searchCalls.size)
+
+        // The pause passing, or pressing the key again, does not repeat it.
+        viewModel.onIntent(SearchIntent.Submit)
+        advanceUntilIdle()
+        assertEquals(1, recipes.searchCalls.size)
+    }
+
+    @Test
+    fun theSearchKeyDoesNotRepeatARequestThatIsOnItsWay() = runTest {
+        recipes.onSearch = {
+            kotlinx.coroutines.delay(5_000)
+            Outcome.Success(recipePage(1..2))
+        }
+        val viewModel = createViewModel()
+        viewModel.onIntent(SearchIntent.QueryChanged("soup"))
+        advanceTimeBy(SEARCH_DEBOUNCE_MILLIS + 1)
+
+        viewModel.onIntent(SearchIntent.Submit)
+        advanceUntilIdle()
+
+        assertEquals(1, recipes.searchCalls.size)
+        assertEquals(listOf(1, 2), viewModel.state.value.recipes.map { it.id })
+    }
+
+    @Test
+    fun retrySearchesAgainEvenForTheSameQuery() = runTest {
+        recipes.onSearch = { Outcome.Failure(DataError.Network) }
+        val viewModel = createViewModel()
+        viewModel.onIntent(SearchIntent.QueryChanged("soup"))
+        advanceUntilIdle()
+
+        viewModel.onIntent(SearchIntent.Retry)
+        advanceUntilIdle()
+
+        assertEquals(2, recipes.searchCalls.size)
+    }
 }

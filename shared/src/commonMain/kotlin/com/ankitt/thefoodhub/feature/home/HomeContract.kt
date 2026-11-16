@@ -2,6 +2,7 @@ package com.ankitt.thefoodhub.feature.home
 
 import com.ankitt.thefoodhub.core.DataError
 import com.ankitt.thefoodhub.domain.model.PopularRecipe
+import com.ankitt.thefoodhub.domain.model.WinePairing
 
 /** The chips on the home screen. */
 enum class HomeCategory {
@@ -34,11 +35,33 @@ data class HomeState(
     val recipes: List<PopularRecipe> = emptyList(),
     val isLoading: Boolean = true,
     val error: DataError? = null,
+    /** The wine pairing for the recipe centred in the carousel. */
+    val winePairing: WinePairingState = WinePairingState.Hidden,
 )
+
+/** The "Pairs well with" section under the carousel. */
+sealed interface WinePairingState {
+    /** No recipe is shown, so neither is the section. */
+    data object Hidden : WinePairingState
+
+    data object Loading : WinePairingState
+
+    data class Ready(val pairing: WinePairing) : WinePairingState
+
+    /** The recipe has nothing a wine pairing applies to, or Spoonacular has no pairing for it. */
+    data object NoPairing : WinePairingState
+
+    data class Failed(val error: DataError) : WinePairingState
+}
 
 sealed interface HomeIntent {
     data class SelectCategory(val category: HomeCategory) : HomeIntent
     /** Also switches to [HomeCategory.Diets]. */
     data class SelectDiet(val diet: Diet) : HomeIntent
     data object Retry : HomeIntent
+
+    /** The carousel settled on this recipe; its wine pairing is shown below. */
+    data class FocusRecipe(val recipeId: Int) : HomeIntent
+
+    data object RetryWinePairing : HomeIntent
 }

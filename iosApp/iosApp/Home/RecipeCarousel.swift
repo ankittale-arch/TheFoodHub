@@ -9,6 +9,8 @@ private let neighbourPeek: CGFloat = 18
 /// shrink and slide in behind it so only a small edge of each shows.
 struct RecipeCarousel: View {
     let recipes: [PopularRecipe]
+    /// The card the carousel moved to. The ViewModel waits for it to settle before fetching anything.
+    var onRecipeFocused: (PopularRecipe) -> Void = { _ in }
     @State private var currentID: Int32?
 
     var body: some View {
@@ -42,6 +44,9 @@ struct RecipeCarousel: View {
         .contentMargins(.horizontal, carouselSideInset, for: .scrollContent)
         .scrollTargetBehavior(.viewAligned)
         .scrollPosition(id: $currentID)
+        .onChange(of: currentID) { _, id in
+            if let recipe = recipes.first(where: { $0.id == id }) { onRecipeFocused(recipe) }
+        }
         .scrollClipDisabled()
         .frame(height: HomeContent.carouselHeight)
     }

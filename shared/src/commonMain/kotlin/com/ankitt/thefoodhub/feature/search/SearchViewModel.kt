@@ -23,6 +23,12 @@ class SearchViewModel(
     private var searchJob: Job? = null
     private var loadMoreJob: Job? = null
 
+    /** What [searchJob] has sent a request for; null while it is still waiting for typing to pause. */
+    private var fetchingCriteria: SearchCriteria? = null
+
+    /** What the results on screen were found for. */
+    private var shownCriteria: SearchCriteria? = null
+
     init {
         favoritesRepository.observeFavoriteIds()
             .onEach { ids -> updateState { copy(favoriteIds = ids) } }
@@ -32,6 +38,7 @@ class SearchViewModel(
     override fun onIntent(intent: SearchIntent) {
         when (intent) {
             is SearchIntent.QueryChanged -> onQueryChanged(intent.query)
+            SearchIntent.Submit -> search(debounce = false)
             is SearchIntent.ApplyIngredients -> setIngredients(
                 intent.ingredients.fold(emptyList(), IngredientCatalog::add),
             )
@@ -40,7 +47,7 @@ class SearchViewModel(
             is SearchIntent.RemoveNutrient -> setNutrients(currentState.nutrients.with(intent.nutrient, NutrientRange()))
             SearchIntent.ClearFilters -> setFilters(emptyList(), NutrientFilter())
             SearchIntent.LoadNextPage -> loadNextPage()
-            SearchIntent.Retry -> search(debounce = false)
+            SearchIntent.Retry -> search(debounce = false, force = true)
             is SearchIntent.ToggleFavorite -> viewModelScope.launch {
                 favoritesRepository.toggleFavorite(intent.recipe)
             }
@@ -49,9 +56,9 @@ class SearchViewModel(
 
     private fun onQueryChanged(query: String) {
         if (query == currentState.query) return
-        val searchTermChanged = query.trim() != currentState.query.trim()
+        // Changing only case or spacing ("Pasta " → "pasta") is the same search, so it costs nothing.
+        val searchTermChanged = SearchCriteria.normalizeQuery(query) != currentState.criteria.query
         updateState { copy(query = query) }
-        // Typing a trailing space should not cost another API call.
         if (searchTermChanged) search(debounce = true)
     }
 
@@ -66,13 +73,22 @@ class SearchViewModel(
         search(debounce = false)
     }
 
-    /** Searches for the current criteria, cancelling any in-flight request so only the latest results reach the state. */
-    private fun search(debounce: Boolean) {
+    /**
+     * Searches for the current criteria, cancelling a search for older criteria so only the latest
+     * results reach the state. Skips the request when it would repeat one: the criteria already on
+     * screen, or already being fetched. [force] (Retry) searches regardless.
+     */
+    private fun search(debounce: Boolean, force: Boolean = false) {
+        val criteria = currentState.criteria
+        if (!force && searchJob?.isActive == true && criteria == fetchingCriteria) return
         searchJob?.cancel()
+        fetchingCriteria = null
+        // E.g. "pasta" → "pastas" → back to "pasta" before the pause: the results are still right.
+        if (!force && criteria == shownCriteria && currentState.error == null) return
         loadMoreJob?.cancel()
 
-        val criteria = currentState.criteria
-        if (criteria.isEmpty) {
+        if (criteria.isEmpty || currentState.isQueryTooShort) {
+            shownCriteria = null
             updateState {
                 copy(
                     recipes = emptyList(), matches = emptyMap(), totalResults = 0, nextOffset = 0, endReached = false,
@@ -84,11 +100,15 @@ class SearchViewModel(
 
         searchJob = viewModelScope.launch {
             if (debounce) delay(SEARCH_DEBOUNCE_MILLIS)
+            fetchingCriteria = criteria
             updateState { copy(isLoading = true, isLoadingMore = false, error = null) }
 
-            when (val outcome = recipeRepository.searchRecipes(criteria, offset = 0, pageSize = PAGE_SIZE)) {
+            val outcome = recipeRepository.searchRecipes(criteria, offset = 0, pageSize = PAGE_SIZE)
+            fetchingCriteria = null
+            when (outcome) {
                 is Outcome.Success -> {
                     val page = outcome.value
+                    shownCriteria = criteria
                     updateState {
                         copy(
                             recipes = page.recipes,
@@ -101,11 +121,14 @@ class SearchViewModel(
                         )
                     }
                 }
-                is Outcome.Failure -> updateState {
-                    copy(
-                        recipes = emptyList(), matches = emptyMap(), totalResults = 0, nextOffset = 0,
-                        endReached = false, isLoading = false, error = outcome.error, hasSearched = true,
-                    )
+                is Outcome.Failure -> {
+                    shownCriteria = null
+                    updateState {
+                        copy(
+                            recipes = emptyList(), matches = emptyMap(), totalResults = 0, nextOffset = 0,
+                            endReached = false, isLoading = false, error = outcome.error, hasSearched = true,
+                        )
+                    }
                 }
             }
         }
@@ -146,6 +169,10 @@ class SearchViewModel(
 
     companion object {
         const val PAGE_SIZE = 20
-        const val SEARCH_DEBOUNCE_MILLIS = 500L
+        /**
+         * How long typing must pause before a search. Long enough not to search between the words of
+         * "chicken curry"; the keyboard's search key ([SearchIntent.Submit]) skips the wait.
+         */
+        const val SEARCH_DEBOUNCE_MILLIS = 800L
     }
 }

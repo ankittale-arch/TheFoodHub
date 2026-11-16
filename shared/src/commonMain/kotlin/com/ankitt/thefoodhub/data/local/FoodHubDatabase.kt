@@ -1,5 +1,6 @@
 package com.ankitt.thefoodhub.data.local
 
+import androidx.room3.AutoMigration
 import androidx.room3.ConstructedBy
 import androidx.room3.Database
 import androidx.room3.RoomDatabase
@@ -10,15 +11,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 @Database(
-    entities = [RecipeEntity::class, FavoriteEntity::class],
-    version = 1,
+    entities = [RecipeEntity::class, FavoriteEntity::class, WinePairingEntity::class],
+    version = 2,
     exportSchema = true,
+    autoMigrations = [
+        // 2 adds the wine_pairings table.
+        AutoMigration(from = 1, to = 2),
+    ],
 )
 @ColumnTypeConverters(RoomConverters::class)
 @ConstructedBy(FoodHubDatabaseConstructor::class)
 abstract class FoodHubDatabase : RoomDatabase() {
     abstract fun recipeDao(): RecipeDao
     abstract fun favoriteDao(): FavoriteDao
+    abstract fun winePairingDao(): WinePairingDao
 
     companion object {
         const val FILE_NAME = "foodhub.db"

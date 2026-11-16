@@ -44,6 +44,10 @@ struct SearchView: View {
         .onChange(of: queryText) { _, query in
             viewModel.onIntent(intent: SearchIntentQueryChanged(query: query))
         }
+        // The keyboard's search key searches at once instead of waiting for typing to pause.
+        .onSubmit(of: .search) {
+            viewModel.onIntent(intent: SearchIntentSubmit.shared)
+        }
         .navigationTitle("The FoodHub")
         .task {
             for await effect in viewModel.effects {
@@ -69,9 +73,16 @@ struct SearchView: View {
         if !state.recipes.isEmpty {
             results(state)
         } else if state.isLoading {
-            ProgressView()
+            FoodLoader(label: "Finding recipes…")
         } else if let error = state.error {
             ErrorView(error: error) { viewModel.onIntent(intent: SearchIntentRetry.shared) }
+        } else if state.isQueryTooShort {
+            let minimum = SearchState.companion.MIN_QUERY_LENGTH
+            ContentUnavailableView(
+                "Keep typing…",
+                systemImage: "character.cursor.ibeam",
+                description: Text("Enter at least \(minimum) \(minimum == 1 ? "letter" : "letters") to search.")
+            )
         } else if state.hasSearched && state.hasFilters {
             ContentUnavailableView(
                 "No recipes match these filters.",

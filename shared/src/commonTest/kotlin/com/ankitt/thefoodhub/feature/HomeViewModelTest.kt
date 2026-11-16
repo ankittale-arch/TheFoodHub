@@ -7,12 +7,17 @@ import com.ankitt.thefoodhub.feature.home.HomeCategory
 import com.ankitt.thefoodhub.feature.home.HomeIntent
 import com.ankitt.thefoodhub.feature.home.HomeViewModel
 import com.ankitt.thefoodhub.feature.home.HomeViewModel.Companion.PAGE_COUNT
+import com.ankitt.thefoodhub.feature.home.HomeViewModel.Companion.PAIRING_SETTLE_MILLIS
+import com.ankitt.thefoodhub.feature.home.WinePairingState
 import com.ankitt.thefoodhub.feature.home.HomeViewModel.Companion.QUICK_FETCH_COUNT
 import com.ankitt.thefoodhub.testutil.FakeRecipeRepository
+import com.ankitt.thefoodhub.testutil.FakeWinePairingRepository
 import com.ankitt.thefoodhub.testutil.MainDispatcherTest
 import com.ankitt.thefoodhub.testutil.RandomCall
 import com.ankitt.thefoodhub.testutil.popularRecipe
+import com.ankitt.thefoodhub.testutil.winePairing
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -24,6 +29,7 @@ import kotlin.test.assertTrue
 class HomeViewModelTest : MainDispatcherTest() {
 
     private val recipes = FakeRecipeRepository()
+    private val wines = FakeWinePairingRepository()
 
     private val untagged = listOf(
         popularRecipe(1, likes = 10),
@@ -37,7 +43,7 @@ class HomeViewModelTest : MainDispatcherTest() {
     @Test
     fun loadsRandomRecipesForAllOnStart() = runTest {
         recipes.onRandom = { Outcome.Success(untagged) }
-        val viewModel = HomeViewModel(recipes)
+        val viewModel = HomeViewModel(recipes, wines)
         assertTrue(viewModel.state.value.isLoading)
 
         advanceUntilIdle()
@@ -54,7 +60,7 @@ class HomeViewModelTest : MainDispatcherTest() {
     @Test
     fun popularSortsTheSameRecipesByLikesWithoutAnotherCall() = runTest {
         recipes.onRandom = { Outcome.Success(untagged) }
-        val viewModel = HomeViewModel(recipes)
+        val viewModel = HomeViewModel(recipes, wines)
         advanceUntilIdle()
 
         viewModel.onIntent(HomeIntent.SelectCategory(HomeCategory.Popular))
@@ -83,7 +89,7 @@ class HomeViewModelTest : MainDispatcherTest() {
                 Outcome.Success(untagged)
             }
         }
-        val viewModel = HomeViewModel(recipes)
+        val viewModel = HomeViewModel(recipes, wines)
         advanceUntilIdle()
 
         viewModel.onIntent(HomeIntent.SelectCategory(HomeCategory.QuickAndEasy))
@@ -98,7 +104,7 @@ class HomeViewModelTest : MainDispatcherTest() {
         recipes.onRandom = { call ->
             Outcome.Success(if (call.includeTags == listOf("vegan")) listOf(popularRecipe(20)) else untagged)
         }
-        val viewModel = HomeViewModel(recipes)
+        val viewModel = HomeViewModel(recipes, wines)
         advanceUntilIdle()
 
         viewModel.onIntent(HomeIntent.SelectDiet(Diet.Vegan))
@@ -122,7 +128,7 @@ class HomeViewModelTest : MainDispatcherTest() {
     @Test
     fun failureShowsErrorAndRetryFetchesAgain() = runTest {
         recipes.onRandom = { Outcome.Failure(DataError.QuotaExceeded) }
-        val viewModel = HomeViewModel(recipes)
+        val viewModel = HomeViewModel(recipes, wines)
         advanceUntilIdle()
 
         with(viewModel.state.value) {
@@ -144,7 +150,7 @@ class HomeViewModelTest : MainDispatcherTest() {
     fun switchingWhileLoadingDoesNotDuplicateTheRequest() = runTest {
         val response = CompletableDeferred<Outcome<List<com.ankitt.thefoodhub.domain.model.PopularRecipe>>>()
         recipes.onRandom = { response.await() }
-        val viewModel = HomeViewModel(recipes)
+        val viewModel = HomeViewModel(recipes, wines)
         advanceUntilIdle()
 
         viewModel.onIntent(HomeIntent.SelectCategory(HomeCategory.Popular))
@@ -164,7 +170,7 @@ class HomeViewModelTest : MainDispatcherTest() {
         recipes.onRandom = { call ->
             if (call.count == QUICK_FETCH_COUNT) quickResponse.await() else Outcome.Success(untagged)
         }
-        val viewModel = HomeViewModel(recipes)
+        val viewModel = HomeViewModel(recipes, wines)
         advanceUntilIdle()
 
         viewModel.onIntent(HomeIntent.SelectCategory(HomeCategory.QuickAndEasy))
@@ -178,5 +184,115 @@ class HomeViewModelTest : MainDispatcherTest() {
         viewModel.onIntent(HomeIntent.SelectCategory(HomeCategory.QuickAndEasy))
         assertEquals(listOf(99), ids(viewModel), "the late result was still cached")
         assertEquals(2, recipes.randomCalls.size)
+    }
+
+    // Wine pairing
+
+    private val paired = listOf(
+        popularRecipe(1, likes = 10, winePairingFood = "pork"),
+        popularRecipe(2, likes = 5, winePairingFood = "chicken"),
+        popularRecipe(3, likes = 99, winePairingFood = "beef"),
+        popularRecipe(4, likes = 1, winePairingFood = "pork"),
+        popularRecipe(5, likes = 0, winePairingFood = null),
+    )
+
+    private suspend fun kotlinx.coroutines.test.TestScope.loadedViewModel(): HomeViewModel {
+        recipes.onRandom = { Outcome.Success(paired) }
+        return HomeViewModel(recipes, wines).also { advanceUntilIdle() }
+    }
+
+    @Test
+    fun theFirstRecipesPairingLoadsWithTheRecipes() = runTest {
+        val viewModel = loadedViewModel()
+
+        assertEquals(listOf("pork"), wines.calls)
+        assertEquals(WinePairingState.Ready(winePairing("pork")), viewModel.state.value.winePairing)
+    }
+
+    @Test
+    fun swipingPastCardsOnlyPaysForTheOneTheCarouselSettlesOn() = runTest {
+        val viewModel = loadedViewModel()
+
+        viewModel.onIntent(HomeIntent.FocusRecipe(2))
+        assertEquals(WinePairingState.Loading, viewModel.state.value.winePairing)
+        advanceTimeBy(PAIRING_SETTLE_MILLIS / 2)
+        viewModel.onIntent(HomeIntent.FocusRecipe(3))
+        advanceUntilIdle()
+
+        assertEquals(listOf("pork", "beef"), wines.calls)
+        assertEquals(WinePairingState.Ready(winePairing("beef")), viewModel.state.value.winePairing)
+    }
+
+    @Test
+    fun aFoodIsLookedUpOnceAndThenShownAtOnce() = runTest {
+        val viewModel = loadedViewModel()
+
+        viewModel.onIntent(HomeIntent.FocusRecipe(4))
+
+        assertEquals(WinePairingState.Ready(winePairing("pork")), viewModel.state.value.winePairing)
+        assertEquals(listOf("pork"), wines.calls)
+    }
+
+    @Test
+    fun aRecipeWithNothingToPairShowsNoPairingWithoutACall() = runTest {
+        val viewModel = loadedViewModel()
+
+        viewModel.onIntent(HomeIntent.FocusRecipe(5))
+
+        assertEquals(WinePairingState.NoPairing, viewModel.state.value.winePairing)
+        assertEquals(listOf("pork"), wines.calls)
+    }
+
+    @Test
+    fun noPairingFromSpoonacularIsRemembered() = runTest {
+        wines.onGetPairing = { Outcome.Success(null) }
+        val viewModel = loadedViewModel()
+        assertEquals(WinePairingState.NoPairing, viewModel.state.value.winePairing)
+
+        viewModel.onIntent(HomeIntent.FocusRecipe(2))
+        advanceUntilIdle()
+        viewModel.onIntent(HomeIntent.FocusRecipe(4))
+        advanceUntilIdle()
+
+        assertEquals(listOf("pork", "chicken"), wines.calls)
+        assertEquals(WinePairingState.NoPairing, viewModel.state.value.winePairing)
+    }
+
+    @Test
+    fun aFailedPairingCanBeRetried() = runTest {
+        wines.onGetPairing = { Outcome.Failure(DataError.QuotaExceeded) }
+        val viewModel = loadedViewModel()
+        assertEquals(WinePairingState.Failed(DataError.QuotaExceeded), viewModel.state.value.winePairing)
+
+        wines.onGetPairing = { food -> Outcome.Success(winePairing(food)) }
+        viewModel.onIntent(HomeIntent.RetryWinePairing)
+        advanceUntilIdle()
+
+        assertEquals(listOf("pork", "pork"), wines.calls)
+        assertEquals(WinePairingState.Ready(winePairing("pork")), viewModel.state.value.winePairing)
+    }
+
+    @Test
+    fun changingCategoryFollowsTheNewFirstCard() = runTest {
+        val viewModel = loadedViewModel()
+
+        // Popular sorts by likes, so recipe 3 (beef) comes first.
+        viewModel.onIntent(HomeIntent.SelectCategory(HomeCategory.Popular))
+        advanceUntilIdle()
+
+        assertEquals(3, viewModel.state.value.recipes.first().id)
+        assertEquals(WinePairingState.Ready(winePairing("beef")), viewModel.state.value.winePairing)
+    }
+
+    @Test
+    fun thePairingIsHiddenWhileThereAreNoRecipes() = runTest {
+        recipes.onRandom = { Outcome.Failure(DataError.Network) }
+        val viewModel = HomeViewModel(recipes, wines)
+        assertEquals(WinePairingState.Hidden, viewModel.state.value.winePairing)
+
+        advanceUntilIdle()
+
+        assertEquals(WinePairingState.Hidden, viewModel.state.value.winePairing)
+        assertTrue(wines.calls.isEmpty())
     }
 }

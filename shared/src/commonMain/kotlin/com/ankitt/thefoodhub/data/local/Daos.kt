@@ -39,3 +39,13 @@ interface FavoriteDao {
     @Query("DELETE FROM favorites WHERE recipeId = :recipeId")
     suspend fun delete(recipeId: Int)
 }
+
+@Dao
+interface WinePairingDao {
+
+    @Query("SELECT * FROM wine_pairings WHERE food = :food")
+    suspend fun get(food: String): WinePairingEntity?
+
+    @Upsert
+    suspend fun upsert(pairing: WinePairingEntity)
+}

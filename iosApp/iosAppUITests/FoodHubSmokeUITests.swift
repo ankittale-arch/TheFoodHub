@@ -23,6 +23,11 @@ final class FoodHubSmokeUITests: XCTestCase {
 
         let recipeCard = app.scrollViews.buttons.matching(NSPredicate(format: "label CONTAINS 'min'")).firstMatch
         XCTAssertTrue(waitForAny([recipeCard, app.staticTexts[keyError]], timeout: 20), "Expected recipe cards or the API key error")
+
+        // With recipes on screen, the wine pairing for the centred one appears below the carousel.
+        if recipeCard.exists {
+            XCTAssertTrue(app.staticTexts["Pairs well with"].waitForExistence(timeout: 5), "Expected the wine pairing section")
+        }
     }
 
     @MainActor

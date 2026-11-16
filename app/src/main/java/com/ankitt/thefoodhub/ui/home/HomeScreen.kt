@@ -35,17 +35,19 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SoupKitchen
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,16 +75,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.ankitt.thefoodhub.R
 import com.ankitt.thefoodhub.domain.model.PopularRecipe
+import com.ankitt.thefoodhub.domain.model.WineBottle
+import com.ankitt.thefoodhub.domain.model.WinePairing
 import com.ankitt.thefoodhub.feature.home.Diet
 import com.ankitt.thefoodhub.feature.home.HomeCategory
 import com.ankitt.thefoodhub.feature.home.HomeIntent
 import com.ankitt.thefoodhub.feature.home.HomeState
 import com.ankitt.thefoodhub.feature.home.HomeViewModel
+import com.ankitt.thefoodhub.feature.home.WinePairingState
+import com.ankitt.thefoodhub.ui.components.FoodLoader
+import com.ankitt.thefoodhub.ui.components.FoodLoaderColors
 import com.ankitt.thefoodhub.ui.components.messageRes
 import com.ankitt.thefoodhub.ui.theme.FoodHubElevation
 import com.ankitt.thefoodhub.ui.theme.HomePalette
 import com.ankitt.thefoodhub.ui.theme.TheFoodHubTheme
 import org.koin.androidx.compose.koinViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.absoluteValue
 
 @Composable
@@ -138,6 +146,11 @@ fun HomeScreen(
             )
             Spacer(Modifier.height(16.dp))
             CarouselArea(state = state, onIntent = onIntent, onRecipeClick = onRecipeClick)
+            WinePairingSection(
+                state = state.winePairing,
+                onRetry = { onIntent(HomeIntent.RetryWinePairing) },
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 28.dp),
+            )
         }
     }
 }
@@ -280,10 +293,18 @@ private fun CarouselArea(
         state.recipes.isNotEmpty() ->
             // A new category starts again at its first card.
             key(state.category, state.diet) {
-                RecipeCarousel(state.recipes, onRecipeClick)
+                RecipeCarousel(
+                    recipes = state.recipes,
+                    onRecipeClick = onRecipeClick,
+                    onRecipeFocused = { onIntent(HomeIntent.FocusRecipe(it.id)) },
+                )
             }
         state.isLoading -> Box(areaModifier, contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = HomePalette.Olive)
+            FoodLoader(
+                label = stringResource(R.string.home_loading),
+                colors = FoodLoaderColors(container = HomePalette.Card, content = HomePalette.Olive),
+                labelColor = HomePalette.InkMuted,
+            )
         }
         else -> Box(areaModifier.padding(horizontal = 32.dp), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -308,8 +329,19 @@ private fun CarouselArea(
 }
 
 @Composable
-private fun RecipeCarousel(recipes: List<PopularRecipe>, onRecipeClick: (PopularRecipe) -> Unit) {
+private fun RecipeCarousel(
+    recipes: List<PopularRecipe>,
+    onRecipeClick: (PopularRecipe) -> Unit,
+    onRecipeFocused: (PopularRecipe) -> Unit,
+) {
     val pagerState = rememberPagerState { recipes.size }
+    val currentOnRecipeFocused by rememberUpdatedState(onRecipeFocused)
+    // Reports the card the carousel comes to rest on, not every card swiped past.
+    LaunchedEffect(pagerState, recipes) {
+        snapshotFlow { pagerState.settledPage }
+            .distinctUntilChanged()
+            .collect { page -> recipes.getOrNull(page)?.let(currentOnRecipeFocused) }
+    }
     HorizontalPager(
         state = pagerState,
         contentPadding = PaddingValues(horizontal = 52.dp),
@@ -473,8 +505,16 @@ private fun HomeScreenPreview() {
             state = HomeState(
                 isLoading = false,
                 recipes = listOf(
-                    PopularRecipe(1, "Leek pasta with miso sauce", null, readyInMinutes = 25, likes = 385, rating = 4.8),
-                    PopularRecipe(2, "Roasted tomato soup", null, readyInMinutes = 40, likes = 120, rating = 4.2),
+                    PopularRecipe(1, "Leek pasta with miso sauce", null, readyInMinutes = 25, likes = 385, rating = 4.8, winePairingFood = "pasta"),
+                    PopularRecipe(2, "Roasted tomato soup", null, readyInMinutes = 40, likes = 120, rating = 4.2, winePairingFood = null),
+                ),
+                winePairing = WinePairingState.Ready(
+                    WinePairing(
+                        food = "pasta",
+                        wines = listOf("Chianti", "Pinot Grigio"),
+                        explanation = "Pasta pairs with wine that matches its sauce: a bright Chianti for tomato, Pinot Grigio for cream.",
+                        suggestedBottle = WineBottle("Castello di Ama Chianti Classico", "$24.99", null, 4.6, 31, "https://example.com"),
+                    ),
                 ),
             ),
             onIntent = {},

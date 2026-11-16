@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface RecipeRepository {
 
-    /** Network-only: results depend on the criteria and are cheap enough not to cache. */
+    /** Recent pages are kept in memory for a few minutes, so repeating a search costs no quota. */
     suspend fun searchRecipes(criteria: SearchCriteria, offset: Int, pageSize: Int): Outcome<RecipePage>
 
     /**

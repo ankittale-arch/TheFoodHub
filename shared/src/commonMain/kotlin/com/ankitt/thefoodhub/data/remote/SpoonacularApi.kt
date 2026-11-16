@@ -4,6 +4,7 @@ import com.ankitt.thefoodhub.core.Outcome
 import com.ankitt.thefoodhub.data.remote.dto.RandomRecipesResponseDto
 import com.ankitt.thefoodhub.data.remote.dto.RecipeInformationDto
 import com.ankitt.thefoodhub.data.remote.dto.SearchResponseDto
+import com.ankitt.thefoodhub.data.remote.dto.WinePairingDto
 import com.ankitt.thefoodhub.domain.model.Nutrient
 import com.ankitt.thefoodhub.domain.model.SearchCriteria
 import io.ktor.client.HttpClient
@@ -12,7 +13,8 @@ import io.ktor.client.request.parameter
 
 /**
  * Spoonacular endpoints used by the app. Point costs (free plan: 150/day):
- * complexSearch costs 1 + 0.01 per result, information costs 1, random costs 1 + 0.01 per recipe.
+ * complexSearch costs 1 + 0.01 per result, information costs 1, random costs 1 + 0.01 per recipe,
+ * wine pairing costs 1.
  */
 internal class SpoonacularApi(private val client: HttpClient) {
 
@@ -58,6 +60,14 @@ internal class SpoonacularApi(private val client: HttpClient) {
                 if (includeTags.isNotEmpty()) parameter("include-tags", includeTags.joinToString(","))
                 if (excludeTags.isNotEmpty()) parameter("exclude-tags", excludeTags.joinToString(","))
                 parameter("includeNutrition", false)
+            }
+        }
+
+    /** [food] must be a simple term such as "pork" or "italian"; recipe titles return no pairing. Costs 1 point. */
+    suspend fun getWinePairing(food: String): Outcome<WinePairingDto> =
+        safeApiCall {
+            client.get("food/wine/pairing") {
+                parameter("food", food)
             }
         }
 

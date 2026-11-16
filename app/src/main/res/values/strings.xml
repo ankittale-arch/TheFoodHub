@@ -33,12 +33,26 @@
     <string name="home_minutes">%1$d min</string>
     <string name="home_likes">%1$d likes</string>
     <string name="home_rating">Rated %1$s out of 5</string>
+    <string name="home_loading">Finding recipes…</string>
+    <string name="home_wine_title">Pairs well with</string>
+    <string name="home_wine_loading">Finding a wine…</string>
+    <string name="home_wine_none_title">No wine pairing for this one</string>
+    <string name="home_wine_none_body">It shines on its own. Try sparkling water with a squeeze of lemon, or swipe for another recipe.</string>
+    <string name="home_wine_rating">★ %1$s</string>
+    <string name="home_wine_rating_count">★ %1$s (%2$d)</string>
+    <string name="home_wine_open_bottle">Open %1$s in the shop</string>
 
     <!-- Search -->
     <string name="search_hint">Search recipes, e.g. pasta</string>
     <string name="search_empty_title">What are you cooking today?</string>
     <string name="search_empty_body">Search by dish, or filter by what’s in your kitchen and by nutrition.</string>
     <string name="search_no_results">No recipes found for “%1$s”.</string>
+    <string name="search_loading">Finding recipes…</string>
+    <string name="search_keep_typing_title">Keep typing…</string>
+    <plurals name="search_keep_typing_body">
+        <item quantity="one">Enter at least %1$d letter to search.</item>
+        <item quantity="other">Enter at least %1$d letters to search.</item>
+    </plurals>
     <string name="search_no_results_filters">No recipes match these filters.</string>
     <string name="search_no_results_filters_body">Try removing an ingredient or loosening a nutrition limit.</string>
 

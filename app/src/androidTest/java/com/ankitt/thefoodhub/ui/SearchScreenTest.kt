@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ankitt.thefoodhub.core.DataError
@@ -64,6 +65,31 @@ class SearchScreenTest {
 
         assertEquals(SearchIntent.QueryChanged("soup"), intents.last())
         composeRule.onNodeWithText("soup").assertIsDisplayed()
+    }
+
+    @Test
+    fun loadingShowsTheFoodLoader() {
+        setContent(SearchState(query = "soup", isLoading = true))
+
+        composeRule.onNodeWithContentDescription("Finding recipes…").assertIsDisplayed()
+    }
+
+    @Test
+    fun aShortQueryAsksForMoreLetters() {
+        setContent(SearchState(query = "pa"))
+
+        composeRule.onNodeWithText("Keep typing…").assertIsDisplayed()
+        composeRule.onNodeWithText("Enter at least 3 letters to search.").assertIsDisplayed()
+    }
+
+    @Test
+    fun theKeyboardSearchKeySubmits() {
+        setContent(SearchState())
+
+        composeRule.onNode(hasSetTextAction()).performTextInput("soup")
+        composeRule.onNode(hasSetTextAction()).performImeAction()
+
+        assertEquals(SearchIntent.Submit, intents.last())
     }
 
     @Test

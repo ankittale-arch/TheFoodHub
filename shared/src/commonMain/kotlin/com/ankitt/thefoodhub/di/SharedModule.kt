@@ -4,12 +4,15 @@ import com.ankitt.thefoodhub.core.AppConfig
 import com.ankitt.thefoodhub.data.local.FavoriteDao
 import com.ankitt.thefoodhub.data.local.FoodHubDatabase
 import com.ankitt.thefoodhub.data.local.RecipeDao
+import com.ankitt.thefoodhub.data.local.WinePairingDao
 import com.ankitt.thefoodhub.data.remote.SpoonacularApi
 import com.ankitt.thefoodhub.data.remote.createHttpClient
 import com.ankitt.thefoodhub.data.repository.FavoritesRepositoryImpl
 import com.ankitt.thefoodhub.data.repository.RecipeRepositoryImpl
+import com.ankitt.thefoodhub.data.repository.WinePairingRepositoryImpl
 import com.ankitt.thefoodhub.domain.repository.FavoritesRepository
 import com.ankitt.thefoodhub.domain.repository.RecipeRepository
+import com.ankitt.thefoodhub.domain.repository.WinePairingRepository
 import com.ankitt.thefoodhub.feature.detail.RecipeDetailViewModel
 import com.ankitt.thefoodhub.feature.favorites.FavoritesViewModel
 import com.ankitt.thefoodhub.feature.home.HomeViewModel
@@ -42,9 +45,11 @@ internal fun dataModule(config: AppConfig): Module = module {
 
     single<RecipeDao> { get<FoodHubDatabase>().recipeDao() }
     single<FavoriteDao> { get<FoodHubDatabase>().favoriteDao() }
+    single<WinePairingDao> { get<FoodHubDatabase>().winePairingDao() }
 
     singleOf(::RecipeRepositoryImpl) { bind<RecipeRepository>() }
     singleOf(::FavoritesRepositoryImpl) { bind<FavoritesRepository>() }
+    singleOf(::WinePairingRepositoryImpl) { bind<WinePairingRepository>() }
 }
 
 internal val viewModelModule: Module = module {

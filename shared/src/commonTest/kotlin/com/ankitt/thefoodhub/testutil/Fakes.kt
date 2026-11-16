@@ -5,13 +5,17 @@ import com.ankitt.thefoodhub.data.local.FavoriteDao
 import com.ankitt.thefoodhub.data.local.FavoriteEntity
 import com.ankitt.thefoodhub.data.local.RecipeDao
 import com.ankitt.thefoodhub.data.local.RecipeEntity
+import com.ankitt.thefoodhub.data.local.WinePairingDao
+import com.ankitt.thefoodhub.data.local.WinePairingEntity
 import com.ankitt.thefoodhub.domain.model.PopularRecipe
 import com.ankitt.thefoodhub.domain.model.RecipeDetail
 import com.ankitt.thefoodhub.domain.model.RecipePage
 import com.ankitt.thefoodhub.domain.model.RecipeSummary
 import com.ankitt.thefoodhub.domain.model.SearchCriteria
+import com.ankitt.thefoodhub.domain.model.WinePairing
 import com.ankitt.thefoodhub.domain.repository.FavoritesRepository
 import com.ankitt.thefoodhub.domain.repository.RecipeRepository
+import com.ankitt.thefoodhub.domain.repository.WinePairingRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -108,4 +112,24 @@ class FakeFavoriteDao : FavoriteDao {
     override suspend fun upsert(favorite: FavoriteEntity) = favorites.update { it + (favorite.recipeId to favorite) }
 
     override suspend fun delete(recipeId: Int) = favorites.update { it - recipeId }
+}
+
+class FakeWinePairingRepository : WinePairingRepository {
+    val calls = mutableListOf<String>()
+    var onGetPairing: suspend (String) -> Outcome<WinePairing?> = { food -> Outcome.Success(winePairing(food)) }
+
+    override suspend fun getPairing(food: String): Outcome<WinePairing?> {
+        calls += food
+        return onGetPairing(food)
+    }
+}
+
+class FakeWinePairingDao : WinePairingDao {
+    val rows = mutableMapOf<String, WinePairingEntity>()
+
+    override suspend fun get(food: String): WinePairingEntity? = rows[food]
+
+    override suspend fun upsert(pairing: WinePairingEntity) {
+        rows[pairing.food] = pairing
+    }
 }

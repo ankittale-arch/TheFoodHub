@@ -8,6 +8,8 @@ import com.ankitt.thefoodhub.data.local.FoodHubDatabase
 import com.ankitt.thefoodhub.data.local.RecipeEntity
 import com.ankitt.thefoodhub.data.local.StoredIngredient
 import com.ankitt.thefoodhub.data.local.StoredStep
+import com.ankitt.thefoodhub.data.local.StoredWineBottle
+import com.ankitt.thefoodhub.data.local.WinePairingEntity
 import com.ankitt.thefoodhub.data.local.buildFoodHubDatabase
 import com.ankitt.thefoodhub.data.repository.FavoritesRepositoryImpl
 import com.ankitt.thefoodhub.data.repository.RecipeRepositoryImpl
@@ -37,6 +39,26 @@ class FoodHubDatabaseTest {
 
     @AfterTest
     fun closeDb() = db.close()
+
+    @Test
+    fun winePairingsRoundTripWithAndWithoutABottle() = runTest {
+        val dao = db.winePairingDao()
+        val withBottle = WinePairingEntity(
+            food = "pork",
+            wines = listOf("pinot noir", "malbec"),
+            description = "Pork works well with red wine.",
+            suggestedBottle = StoredWineBottle("Vinum Pinot Noir", "$18.99", null, 4.6, 23, null),
+            cachedAtEpochMillis = 1,
+        )
+        val noPairing = WinePairingEntity("tofu", emptyList(), "", suggestedBottle = null, cachedAtEpochMillis = 2)
+
+        dao.upsert(withBottle)
+        dao.upsert(noPairing)
+
+        assertEquals(withBottle, dao.get("pork"))
+        assertEquals(noPairing, dao.get("tofu"))
+        assertNull(dao.get("beef"))
+    }
 
     private fun recipeEntity(id: Int) = RecipeEntity(
         id = id,

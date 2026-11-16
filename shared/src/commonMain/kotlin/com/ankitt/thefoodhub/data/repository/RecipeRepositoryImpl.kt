@@ -23,8 +23,15 @@ internal class RecipeRepositoryImpl(
     private val clock: Clock,
 ) : RecipeRepository {
 
-    override suspend fun searchRecipes(criteria: SearchCriteria, offset: Int, pageSize: Int): Outcome<RecipePage> =
-        api.searchRecipes(criteria = criteria, offset = offset, number = pageSize).map { it.toDomain() }
+    private val searchCache = SearchResultCache(clock)
+
+    /** Served from [searchCache] when the same page was fetched recently; only successes are cached. */
+    override suspend fun searchRecipes(criteria: SearchCriteria, offset: Int, pageSize: Int): Outcome<RecipePage> {
+        searchCache.get(criteria, offset, pageSize)?.let { return Outcome.Success(it) }
+        val outcome = api.searchRecipes(criteria = criteria, offset = offset, number = pageSize).map { it.toDomain() }
+        if (outcome is Outcome.Success) searchCache.put(criteria, offset, pageSize, outcome.value)
+        return outcome
+    }
 
     override suspend fun getRandomRecipes(
         count: Int,

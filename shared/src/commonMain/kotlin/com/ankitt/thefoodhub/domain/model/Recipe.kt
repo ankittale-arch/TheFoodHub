@@ -35,6 +35,8 @@ data class PopularRecipe(
     val likes: Int?,
     /** 0.0–5.0, converted from Spoonacular's 0–100 score. */
     val rating: Double?,
+    /** What to look up a wine pairing for, e.g. "pork"; null when nothing in the recipe suits one. */
+    val winePairingFood: String?,
 )
 
 data class RecipeDetail(

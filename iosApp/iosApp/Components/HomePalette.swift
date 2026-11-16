@@ -12,6 +12,8 @@ enum HomePalette {
     static let chip = Color(hex: 0xDCE3E9)
     static let olive = Color(hex: 0x6E8360)
     static let pill = Color(hex: 0xF2F3F4)
+    /// Accent of the wine pairing section.
+    static let wine = Color(hex: 0x7B2D3B)
 }
 
 extension Color {

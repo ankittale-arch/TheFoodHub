@@ -32,6 +32,9 @@ struct HomeContent: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
                 carouselArea(state).padding(.top, 16)
+                WinePairingSection(state: state.winePairing, onRetry: { send(HomeIntentRetryWinePairing.shared) })
+                    .padding(.horizontal, 20)
+                    .padding(.top, 28)
             }
             .padding(.top, 16)
             .padding(.bottom, 16)
@@ -133,11 +136,13 @@ struct HomeContent: View {
     @ViewBuilder
     private func carouselArea(_ state: HomeState) -> some View {
         if !state.recipes.isEmpty {
-            RecipeCarousel(recipes: state.recipes)
+            RecipeCarousel(recipes: state.recipes, onRecipeFocused: { send(HomeIntentFocusRecipe(recipeId: $0.id)) })
                 // A new category starts again at its first card.
                 .id("\(state.category)-\(state.diet)")
         } else if state.isLoading {
-            ProgressView().tint(HomePalette.olive).frame(maxWidth: .infinity).frame(height: Self.carouselHeight)
+            FoodLoader(label: "Finding recipes…", background: .white, foreground: HomePalette.olive, labelColor: HomePalette.inkMuted)
+                .frame(maxWidth: .infinity)
+                .frame(height: Self.carouselHeight)
         } else {
             VStack(spacing: 16) {
                 Text(state.error?.message ?? "No recipes here right now. Try another category.")
@@ -193,13 +198,23 @@ extension Diet {
                 recipes: [
                     PopularRecipe(id: 716429, title: "Pasta with Garlic, Scallions, Cauliflower & Breadcrumbs",
                                   imageUrl: "https://img.spoonacular.com/recipes/716429-556x370.jpg",
-                                  readyInMinutes: KotlinInt(int: 45), likes: KotlinInt(int: 209), rating: KotlinDouble(double: 4.2)),
+                                  readyInMinutes: KotlinInt(int: 45), likes: KotlinInt(int: 209), rating: KotlinDouble(double: 4.2),
+                                  winePairingFood: "pasta"),
                     PopularRecipe(id: 715538, title: "Bruschetta Style Pork & Pasta",
                                   imageUrl: "https://img.spoonacular.com/recipes/715538-556x370.jpg",
-                                  readyInMinutes: KotlinInt(int: 35), likes: KotlinInt(int: 385), rating: KotlinDouble(double: 4.8)),
+                                  readyInMinutes: KotlinInt(int: 35), likes: KotlinInt(int: 385), rating: KotlinDouble(double: 4.8),
+                                  winePairingFood: "pork"),
                 ],
                 isLoading: false,
-                error: nil
+                error: nil,
+                winePairing: WinePairingStateReady(pairing: WinePairing(
+                    food: "pasta",
+                    wines: ["Chianti", "Pinot Grigio"],
+                    explanation: "Pasta pairs with wine that matches its sauce: a bright Chianti for tomato, Pinot Grigio for cream.",
+                    suggestedBottle: WineBottle(title: "Castello di Ama Chianti Classico", price: "$24.99", imageUrl: nil,
+                                                rating: KotlinDouble(double: 4.6), ratingCount: KotlinInt(int: 31),
+                                                link: "https://example.com")
+                ))
             ),
             onIntent: { _ in },
             onSearchTap: {}

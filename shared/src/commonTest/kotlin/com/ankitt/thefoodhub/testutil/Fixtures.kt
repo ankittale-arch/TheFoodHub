@@ -9,6 +9,7 @@ import com.ankitt.thefoodhub.domain.model.PopularRecipe
 import com.ankitt.thefoodhub.domain.model.RecipeDetail
 import com.ankitt.thefoodhub.domain.model.RecipePage
 import com.ankitt.thefoodhub.domain.model.RecipeSummary
+import com.ankitt.thefoodhub.domain.model.WinePairing
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
@@ -27,13 +28,26 @@ fun recipeSummary(id: Int) = RecipeSummary(id = id, title = "Recipe $id", imageU
 fun recipePage(ids: IntRange, offset: Int = 0, totalResults: Int = 100) =
     RecipePage(recipes = ids.map(::recipeSummary), offset = offset, totalResults = totalResults)
 
-fun popularRecipe(id: Int, likes: Int? = null, readyInMinutes: Int? = 20) = PopularRecipe(
+fun popularRecipe(
+    id: Int,
+    likes: Int? = null,
+    readyInMinutes: Int? = 20,
+    winePairingFood: String? = null,
+) = PopularRecipe(
     id = id,
     title = "Popular $id",
     imageUrl = "https://img/$id.jpg",
     readyInMinutes = readyInMinutes,
     likes = likes,
     rating = 4.5,
+    winePairingFood = winePairingFood,
+)
+
+fun winePairing(food: String) = WinePairing(
+    food = food,
+    wines = listOf("Pinot Noir"),
+    explanation = "Goes with $food.",
+    suggestedBottle = null,
 )
 
 fun recipeDetail(id: Int) = RecipeDetail(
@@ -101,6 +115,26 @@ val FILTERED_SEARCH_RESPONSE_JSON = """
       "number": 2,
       "totalResults": 2
     }
+""".trimIndent()
+
+/** `food/wine/pairing?food=pork`, trimmed from a real response. */
+val WINE_PAIRING_JSON = """
+    {
+      "pairedWines": ["pinot noir", "malbec", "sangiovese"],
+      "pairingText": "Pork works well with red and white wine, depending on the flavors of the dish.",
+      "productMatches": [
+        {
+          "id": 434328, "title": "Vinum Cellars Pinot Noir", "description": "Ripe cherry.",
+          "price": "$18.99", "imageUrl": "https://img.spoonacular.com/products/434328-312x231.jpg",
+          "averageRating": 0.92, "ratingCount": 23.0, "score": 0.88, "link": "https://www.amazon.com/example"
+        }
+      ]
+    }
+""".trimIndent()
+
+/** What Spoonacular answers, with status 200, when it has no pairing for a food. */
+val WINE_PAIRING_NOT_FOUND_JSON = """
+    { "status": "failure", "message": "Could not find a wine pairing for Cider-Braised Pork Shoulder" }
 """.trimIndent()
 
 val RANDOM_RECIPES_JSON = """

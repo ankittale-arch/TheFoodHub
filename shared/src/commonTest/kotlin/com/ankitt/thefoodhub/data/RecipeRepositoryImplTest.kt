@@ -74,6 +74,29 @@ class RecipeRepositoryImplTest {
     }
 
     @Test
+    fun aRepeatedSearchIsServedWithoutAnotherRequest() = runTest {
+        val mock = MockSpoonacular { respondJson(SEARCH_RESPONSE_JSON) }
+        val repo = repository(mock)
+
+        repo.searchRecipes(SearchCriteria("Pasta"), offset = 0, pageSize = 2)
+        val again = repo.searchRecipes(SearchCriteria("pasta "), offset = 0, pageSize = 2)
+
+        assertEquals(1, mock.requests.size)
+        assertEquals(86, assertIs<Outcome.Success<com.ankitt.thefoodhub.domain.model.RecipePage>>(again).value.totalResults)
+    }
+
+    @Test
+    fun failedSearchesAreNotCached() = runTest {
+        val mock = MockSpoonacular { respondJson("{}", HttpStatusCode.InternalServerError) }
+        val repo = repository(mock)
+
+        repo.searchRecipes(SearchCriteria("pasta"), offset = 0, pageSize = 2)
+        repo.searchRecipes(SearchCriteria("pasta"), offset = 0, pageSize = 2)
+
+        assertEquals(2, mock.requests.size)
+    }
+
+    @Test
     fun randomRecipesMapToCardsWithoutDuplicates() = runTest {
         val repo = repository(MockSpoonacular { respondJson(RANDOM_RECIPES_JSON) })
 
@@ -88,9 +111,13 @@ class RecipeRepositoryImplTest {
                     readyInMinutes = 25,
                     likes = 385,
                     rating = 4.8,
+                    winePairingFood = "pasta",
                 ),
                 // Missing stats stay null instead of becoming 0, and a blank image becomes null.
-                PopularRecipe(id = 1002, title = "Plain Toast", imageUrl = null, readyInMinutes = null, likes = null, rating = null),
+                PopularRecipe(
+                    id = 1002, title = "Plain Toast", imageUrl = null, readyInMinutes = null, likes = null, rating = null,
+                    winePairingFood = null,
+                ),
             ),
             recipes,
         )

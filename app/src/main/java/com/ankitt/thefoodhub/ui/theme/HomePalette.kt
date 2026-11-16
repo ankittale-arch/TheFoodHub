@@ -31,6 +31,8 @@ class HomeColors(
     val Pill: Color,
     /** Frame around each carousel slide. */
     val SlideBorder: Color,
+    /** Accent of the wine pairing section. */
+    val Wine: Color,
     val Bar: Color,
     val BarIconBackground: Color,
     val BarIcon: Color,
@@ -50,6 +52,7 @@ internal val LightHomeColors = HomeColors(
     Card = Color.White,
     Pill = Color(0xFFF2F3F4),
     SlideBorder = Color.White.copy(alpha = 0.9f),
+    Wine = Color(0xFF7B2D3B),
     Bar = Color(0xFF111111),
     BarIconBackground = Color.White,
     BarIcon = Color(0xFF111111),
@@ -69,6 +72,7 @@ internal val DarkHomeColors = HomeColors(
     Card = Color(0xFF1E262D),
     Pill = Color(0xFF2B353D),
     SlideBorder = Color.White.copy(alpha = 0.12f),
+    Wine = Color(0xFFE09AA8),
     Bar = Color(0xFF2B353D),
     BarIconBackground = Color(0xFFE6EAEE),
     BarIcon = Color(0xFF111111),

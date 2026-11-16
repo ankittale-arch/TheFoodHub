@@ -87,3 +87,27 @@ internal data class StepDto(
 )
 
 internal const val INGREDIENT_IMAGE_BASE_URL = "https://img.spoonacular.com/ingredients_100x100/"
+
+/**
+ * `GET food/wine/pairing`. When Spoonacular has no pairing it still answers 200, with
+ * `{"status": "failure", "message": ...}` instead of these fields, which then keep their defaults.
+ */
+@Serializable
+internal data class WinePairingDto(
+    val pairedWines: List<String> = emptyList(),
+    val pairingText: String = "",
+    val productMatches: List<WineProductDto> = emptyList(),
+    val status: String? = null,
+)
+
+@Serializable
+internal data class WineProductDto(
+    val title: String,
+    val price: String? = null,
+    val imageUrl: String? = null,
+    /** 0–1. */
+    val averageRating: Double? = null,
+    /** Sent as a decimal, e.g. 23.0. */
+    val ratingCount: Double? = null,
+    val link: String? = null,
+)
