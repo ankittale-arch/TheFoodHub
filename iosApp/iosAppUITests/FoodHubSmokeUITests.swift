@@ -60,6 +60,35 @@ final class FoodHubSmokeUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 10))
     }
 
+    /// Same-dimension conversions are worked out on the device, so this needs no API key or network.
+    @MainActor
+    func testKitchenCalculatorConvertsOfflineAndOpensSubstitutes() {
+        let app = XCUIApplication()
+        app.launch()
+
+        app.buttons["Kitchen"].tap()
+        XCTAssertTrue(app.navigationBars["Kitchen calculator"].waitForExistence(timeout: 10))
+
+        // 1 cup → teaspoons.
+        app.buttons["To: Grams"].tap()
+        app.buttons["Teaspoons"].tap()
+        XCTAssertTrue(app.staticTexts["48 teaspoons"].waitForExistence(timeout: 5))
+        attachScreenshot(app, name: "Kitchen calculator: convert")
+
+        app.buttons["Substitute"].tap()
+        XCTAssertTrue(app.staticTexts["Out of an ingredient?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["butter"].exists, "Expected the suggestion chips")
+        attachScreenshot(app, name: "Kitchen calculator: substitute")
+    }
+
+    @MainActor
+    private func attachScreenshot(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     /// Waits until any of `elements` exists. Unlike chaining `waitForExistence` calls, this returns
     /// as soon as one outcome appears instead of sitting through the timeout of the one that never comes.
     @MainActor

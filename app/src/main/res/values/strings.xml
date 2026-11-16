@@ -12,6 +12,7 @@
     <string name="action_remove_favorite">Remove from favorites</string>
 
     <string name="nav_home">Home</string>
+    <string name="nav_calculator">Kitchen</string>
 
     <!-- Home -->
     <string name="home_headline_muted">Let’s plan</string>
@@ -91,6 +92,53 @@
     <string name="favorites_empty_title">No favorites yet</string>
     <string name="favorites_empty_body">Tap the heart on any recipe to save it here.</string>
     <string name="favorites_removed">Removed “%1$s”</string>
+
+    <!-- Kitchen calculator -->
+    <string name="calculator_title">Kitchen calculator</string>
+    <string name="calculator_tool_convert">Convert</string>
+    <string name="calculator_tool_substitute">Substitute</string>
+    <string name="calculator_amount">Amount</string>
+    <string name="calculator_amount_hint">e.g. 2.5 or 1 1/2</string>
+    <string name="calculator_from">From</string>
+    <string name="calculator_to">To</string>
+    <string name="calculator_swap_units">Swap units</string>
+    <string name="calculator_ingredient">Ingredient</string>
+    <string name="calculator_ingredient_hint">e.g. flour</string>
+    <string name="calculator_convert">Convert</string>
+    <string name="calculator_result_standard">Standard US kitchen measures · works offline</string>
+    <string name="calculator_result_density">Based on 1 cup of %1$s ≈ %2$s g · saved for offline use</string>
+    <string name="calculator_invalid_amount">Enter an amount, such as 2.5, 1/2 or 1 1/2.</string>
+    <string name="calculator_needs_ingredient">Weight ↔ volume depends on the ingredient: a cup of flour weighs less than a cup of sugar.</string>
+    <string name="calculator_needs_lookup">Look up how much a cup of %1$s weighs. This uses 1 Spoonacular point, then works offline.</string>
+    <string name="calculator_loading">Looking up %1$s…</string>
+    <string name="calculator_unconvertible">Spoonacular can’t convert %1$s between weight and volume.</string>
+    <string name="calculator_substitute_hint">What are you out of? e.g. butter</string>
+    <string name="calculator_find">Find substitutes</string>
+    <string name="calculator_substitute_idle_title">Out of an ingredient?</string>
+    <string name="calculator_substitute_idle_body">Find what to use instead. Each new ingredient uses 1 Spoonacular point; answers are saved for offline use.</string>
+    <string name="calculator_substitutes_title">Instead of %1$s</string>
+    <string name="calculator_substitutes_none">No substitutes found for %1$s.</string>
+    <string name="calculator_suggestions">Suggestions</string>
+    <string name="unit_grams">Grams</string>
+    <string name="unit_kilograms">Kilograms</string>
+    <string name="unit_ounces">Ounces</string>
+    <string name="unit_pounds">Pounds</string>
+    <string name="unit_teaspoons">Teaspoons</string>
+    <string name="unit_tablespoons">Tablespoons</string>
+    <string name="unit_cups">Cups</string>
+    <string name="unit_fluid_ounces">Fluid ounces</string>
+    <string name="unit_milliliters">Milliliters</string>
+    <string name="unit_liters">Liters</string>
+    <plurals name="amount_grams"><item quantity="one">%1$s gram</item><item quantity="other">%1$s grams</item></plurals>
+    <plurals name="amount_kilograms"><item quantity="one">%1$s kilogram</item><item quantity="other">%1$s kilograms</item></plurals>
+    <plurals name="amount_ounces"><item quantity="one">%1$s ounce</item><item quantity="other">%1$s ounces</item></plurals>
+    <plurals name="amount_pounds"><item quantity="one">%1$s pound</item><item quantity="other">%1$s pounds</item></plurals>
+    <plurals name="amount_teaspoons"><item quantity="one">%1$s teaspoon</item><item quantity="other">%1$s teaspoons</item></plurals>
+    <plurals name="amount_tablespoons"><item quantity="one">%1$s tablespoon</item><item quantity="other">%1$s tablespoons</item></plurals>
+    <plurals name="amount_cups"><item quantity="one">%1$s cup</item><item quantity="other">%1$s cups</item></plurals>
+    <plurals name="amount_fluid_ounces"><item quantity="one">%1$s fluid ounce</item><item quantity="other">%1$s fluid ounces</item></plurals>
+    <plurals name="amount_milliliters"><item quantity="one">%1$s milliliter</item><item quantity="other">%1$s milliliters</item></plurals>
+    <plurals name="amount_liters"><item quantity="one">%1$s liter</item><item quantity="other">%1$s liters</item></plurals>
 
     <!-- Detail -->
     <string name="detail_ready_in">%1$d min</string>

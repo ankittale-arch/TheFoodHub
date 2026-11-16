@@ -90,7 +90,8 @@ private struct RemovableChip: View {
 }
 
 /// A tappable chip, such as an ingredient suggestion or a nutrition preset that shows when it is selected.
-private struct ChipButton: View {
+/// A tappable chip; also used for the kitchen calculator's suggestions.
+struct ChipButton: View {
     let label: String
     var systemImage: String?
     var isSelected = false

@@ -78,6 +78,11 @@ Each screen exposes one `state: StateFlow<State>`, takes user actions through `o
 - **Search** is network-only. It waits 500 ms after typing stops, a new query cancels the request in flight, and it loads 20 results per page up to Spoonacular's offset limit of 900.
 - **Recipe detail** is cache-first. The screen reads from Room, and the network is called only when the recipe isn't cached yet.
 - **Favorites** are stored in Room with their own title and image, so a recipe can be saved straight from search results.
+- **Kitchen calculator** (calculator icon in the bottom bar) has two tools:
+  - **Convert**: amounts between grams, kilograms, ounces, pounds, teaspoons, tablespoons, cups, fluid ounces, milliliters and liters. Conversions within weight or within volume are worked out on the device, so they are free and work offline. Weight ↔ volume (grams to cups) depends on the ingredient, so the app asks Spoonacular (`GET recipes/convert`, 1 point) how much one cup weighs. That happens only when you tap Convert or a suggestion, never while you type. The answer is saved in Room, so after that every unit pair and amount for that ingredient converts offline.
+  - **Substitute**: swaps for a missing ingredient (`GET food/ingredients/substitutes`, 1 point), saved in Room the same way.
+
+  Answers that something can't be converted or has no substitutes are saved too, so they cost no second call. Ingredients already saved appear first among the suggestion chips.
 
 ## Tests
 

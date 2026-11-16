@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ankitt.thefoodhub.ui.theme.HomePalette
@@ -39,6 +40,12 @@ data class BottomBarItem(
     val selected: Boolean,
     val onClick: () -> Unit,
 )
+
+/**
+ * The white circle behind each icon. 48 dp keeps four tabs plus the selected label within a
+ * 360 dp-wide phone. iOS uses the same size in `FoodHubTabBar.swift`.
+ */
+val BarIconSize: Dp = 48.dp
 
 /** Floating pill bar from the home design: the selected item expands into a green pill with its label. */
 @Composable
@@ -72,7 +79,7 @@ private fun BarItem(item: BottomBarItem) {
     ) {
         Box(
             Modifier
-                .size(52.dp)
+                .size(BarIconSize)
                 .clip(CircleShape)
                 .background(HomePalette.BarIconBackground.let { if (item.selected) it.copy(alpha = 0.92f) else it }),
             contentAlignment = Alignment.Center,

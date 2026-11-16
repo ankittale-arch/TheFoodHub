@@ -111,3 +111,25 @@ internal data class WineProductDto(
     val ratingCount: Double? = null,
     val link: String? = null,
 )
+
+/** `GET recipes/convert`. Unknown ingredients have no documented response, so every field is optional. */
+@Serializable
+internal data class ConvertAmountsDto(
+    val sourceAmount: Double? = null,
+    val sourceUnit: String? = null,
+    val targetAmount: Double? = null,
+    val targetUnit: String? = null,
+    val answer: String? = null,
+)
+
+/**
+ * `GET food/ingredients/substitutes`. When Spoonacular has no substitutes it answers
+ * `{"status": "failure", "message": ...}`, and [substitutes] keeps its empty default.
+ */
+@Serializable
+internal data class IngredientSubstitutesDto(
+    val ingredient: String? = null,
+    val substitutes: List<String> = emptyList(),
+    val message: String? = null,
+    val status: String? = null,
+)

@@ -1,6 +1,8 @@
 package com.ankitt.thefoodhub.data.remote
 
 import com.ankitt.thefoodhub.core.Outcome
+import com.ankitt.thefoodhub.data.remote.dto.ConvertAmountsDto
+import com.ankitt.thefoodhub.data.remote.dto.IngredientSubstitutesDto
 import com.ankitt.thefoodhub.data.remote.dto.RandomRecipesResponseDto
 import com.ankitt.thefoodhub.data.remote.dto.RecipeInformationDto
 import com.ankitt.thefoodhub.data.remote.dto.SearchResponseDto
@@ -14,7 +16,7 @@ import io.ktor.client.request.parameter
 /**
  * Spoonacular endpoints used by the app. Point costs (free plan: 150/day):
  * complexSearch costs 1 + 0.01 per result, information costs 1, random costs 1 + 0.01 per recipe,
- * wine pairing costs 1.
+ * wine pairing, convert and substitutes cost 1 each.
  */
 internal class SpoonacularApi(private val client: HttpClient) {
 
@@ -68,6 +70,30 @@ internal class SpoonacularApi(private val client: HttpClient) {
         safeApiCall {
             client.get("food/wine/pairing") {
                 parameter("food", food)
+            }
+        }
+
+    /** "2.5 cups flour translates to 312.5 grams." Units are Spoonacular's names, e.g. "cups", "grams". Costs 1 point. */
+    suspend fun convertAmount(
+        ingredientName: String,
+        sourceAmount: Double,
+        sourceUnit: String,
+        targetUnit: String,
+    ): Outcome<ConvertAmountsDto> =
+        safeApiCall {
+            client.get("recipes/convert") {
+                parameter("ingredientName", ingredientName)
+                parameter("sourceAmount", sourceAmount)
+                parameter("sourceUnit", sourceUnit)
+                parameter("targetUnit", targetUnit)
+            }
+        }
+
+    /** Costs 1 point. */
+    suspend fun getIngredientSubstitutes(ingredientName: String): Outcome<IngredientSubstitutesDto> =
+        safeApiCall {
+            client.get("food/ingredients/substitutes") {
+                parameter("ingredientName", ingredientName)
             }
         }
 

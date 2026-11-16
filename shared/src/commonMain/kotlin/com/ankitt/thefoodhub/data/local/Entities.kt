@@ -71,3 +71,22 @@ data class StoredWineBottle(
     val ratingCount: Int?,
     val link: String?,
 )
+
+/**
+ * An ingredient's density, used to convert between mass and volume. A null [gramsPerCup] records
+ * that Spoonacular can't convert the ingredient, so that answer is not paid for again.
+ */
+@Entity(tableName = "ingredient_densities")
+data class IngredientDensityEntity(
+    @PrimaryKey val ingredient: String,
+    val gramsPerCup: Double?,
+    val cachedAtEpochMillis: Long,
+)
+
+/** Saved substitutes for an ingredient. An empty list records that Spoonacular has none. */
+@Entity(tableName = "ingredient_substitutes")
+data class IngredientSubstitutesEntity(
+    @PrimaryKey val ingredient: String,
+    val substitutes: List<String>,
+    val cachedAtEpochMillis: Long,
+)

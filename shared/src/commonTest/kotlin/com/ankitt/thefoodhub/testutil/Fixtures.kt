@@ -192,3 +192,18 @@ val RECIPE_INFORMATION_JSON = """
       ]
     }
 """.trimIndent()
+
+val CONVERT_FLOUR_JSON = """
+    {"sourceAmount": 1.0, "sourceUnit": "cups", "targetAmount": 125.0, "targetUnit": "grams",
+     "answer": "1 cup flour translates to 125 grams.", "type": "CONVERSION"}
+"""
+
+val SUBSTITUTES_BUTTER_JSON = """
+    {"ingredient": "butter",
+     "substitutes": ["1 cup = 7/8 cup shortening and 1/2 tsp salt", " 1 cup = 1 cup margarine ", ""],
+     "message": "Found 3 substitutes for the ingredient."}
+"""
+
+val SUBSTITUTES_NOT_FOUND_JSON = """
+    {"status": "failure", "message": "Could not find any substitutes for that ingredient."}
+"""

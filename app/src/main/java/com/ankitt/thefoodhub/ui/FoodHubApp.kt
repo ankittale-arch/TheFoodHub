@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Search
@@ -35,10 +36,13 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.ankitt.thefoodhub.R
 import com.ankitt.thefoodhub.ui.components.BottomBarItem
+import com.ankitt.thefoodhub.ui.calculator.CalculatorRoute
+import com.ankitt.thefoodhub.ui.components.BarIconSize
 import com.ankitt.thefoodhub.ui.components.FoodHubBottomBar
 import com.ankitt.thefoodhub.ui.detail.RecipeDetailRoute
 import com.ankitt.thefoodhub.ui.favorites.FavoritesRoute
 import com.ankitt.thefoodhub.ui.home.HomeRoute
+import com.ankitt.thefoodhub.ui.navigation.CalculatorDestination
 import com.ankitt.thefoodhub.ui.navigation.FavoritesDestination
 import com.ankitt.thefoodhub.ui.navigation.HomeDestination
 import com.ankitt.thefoodhub.ui.navigation.RecipeDetailDestination
@@ -55,10 +59,11 @@ private enum class TopLevelDestination(
     Home(HomeDestination, HomeDestination::class, Icons.Outlined.Home, R.string.nav_home),
     Search(SearchDestination, SearchDestination::class, Icons.Outlined.Search, R.string.nav_search),
     Favorites(FavoritesDestination, FavoritesDestination::class, Icons.Outlined.FavoriteBorder, R.string.nav_favorites),
+    Calculator(CalculatorDestination, CalculatorDestination::class, Icons.Outlined.Calculate, R.string.nav_calculator),
 }
 
-/** Height of the floating bar plus its bottom margin. */
-private val BottomBarSpace = 64.dp + 16.dp + 12.dp
+/** Height of the floating bar (icon plus 6 dp padding on each side) plus its bottom margin. */
+private val BottomBarSpace = BarIconSize + 12.dp + 16.dp + 12.dp
 
 @Composable
 fun FoodHubApp() {
@@ -107,6 +112,9 @@ fun FoodHubApp() {
             }
             composable<FavoritesDestination> {
                 FavoritesRoute(onRecipeClick = { openRecipe(it.id, it.title) }, modifier = topLevelModifier)
+            }
+            composable<CalculatorDestination> {
+                CalculatorRoute(modifier = topLevelModifier)
             }
             composable<RecipeDetailDestination> { entry ->
                 val route = entry.toRoute<RecipeDetailDestination>()

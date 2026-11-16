@@ -49,3 +49,25 @@ interface WinePairingDao {
     @Upsert
     suspend fun upsert(pairing: WinePairingEntity)
 }
+
+@Dao
+interface KitchenDao {
+
+    @Query("SELECT * FROM ingredient_densities WHERE ingredient = :ingredient")
+    suspend fun getDensity(ingredient: String): IngredientDensityEntity?
+
+    @Upsert
+    suspend fun upsertDensity(density: IngredientDensityEntity)
+
+    @Query("SELECT ingredient FROM ingredient_densities WHERE gramsPerCup IS NOT NULL ORDER BY cachedAtEpochMillis DESC")
+    fun observeDensityIngredients(): Flow<List<String>>
+
+    @Query("SELECT * FROM ingredient_substitutes WHERE ingredient = :ingredient")
+    suspend fun getSubstitutes(ingredient: String): IngredientSubstitutesEntity?
+
+    @Upsert
+    suspend fun upsertSubstitutes(substitutes: IngredientSubstitutesEntity)
+
+    @Query("SELECT ingredient FROM ingredient_substitutes WHERE substitutes != '[]' ORDER BY cachedAtEpochMillis DESC")
+    fun observeSubstituteIngredients(): Flow<List<String>>
+}

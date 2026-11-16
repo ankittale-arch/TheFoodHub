@@ -5,6 +5,8 @@ import app.cash.turbine.test
 import com.ankitt.thefoodhub.core.Outcome
 import com.ankitt.thefoodhub.data.local.FavoriteEntity
 import com.ankitt.thefoodhub.data.local.FoodHubDatabase
+import com.ankitt.thefoodhub.data.local.IngredientDensityEntity
+import com.ankitt.thefoodhub.data.local.IngredientSubstitutesEntity
 import com.ankitt.thefoodhub.data.local.RecipeEntity
 import com.ankitt.thefoodhub.data.local.StoredIngredient
 import com.ankitt.thefoodhub.data.local.StoredStep
@@ -58,6 +60,25 @@ class FoodHubDatabaseTest {
         assertEquals(withBottle, dao.get("pork"))
         assertEquals(noPairing, dao.get("tofu"))
         assertNull(dao.get("beef"))
+    }
+
+    @Test
+    fun kitchenLookupsRoundTripAndOnlyUsefulOnesAreListed() = runTest {
+        val dao = db.kitchenDao()
+        dao.upsertDensity(IngredientDensityEntity("flour", 125.0, cachedAtEpochMillis = 1))
+        dao.upsertDensity(IngredientDensityEntity("sugar", 200.0, cachedAtEpochMillis = 3))
+        dao.upsertDensity(IngredientDensityEntity("air", null, cachedAtEpochMillis = 2))
+        dao.upsertSubstitutes(IngredientSubstitutesEntity("butter", listOf("1 cup = 1 cup margarine"), cachedAtEpochMillis = 1))
+        dao.upsertSubstitutes(IngredientSubstitutesEntity("saffron", emptyList(), cachedAtEpochMillis = 2))
+
+        assertEquals(125.0, dao.getDensity("flour")?.gramsPerCup)
+        assertNull(assertNotNull(dao.getDensity("air")).gramsPerCup)
+        assertNull(dao.getDensity("rice"))
+        assertEquals(emptyList(), dao.getSubstitutes("saffron")?.substitutes)
+
+        // Unknown answers are saved but not offered as suggestions; newest first.
+        assertEquals(listOf("sugar", "flour"), dao.observeDensityIngredients().first())
+        assertEquals(listOf("butter"), dao.observeSubstituteIngredients().first())
     }
 
     private fun recipeEntity(id: Int) = RecipeEntity(

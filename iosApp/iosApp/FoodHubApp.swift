@@ -24,6 +24,7 @@ struct RootView: View {
     @State private var homePath = NavigationPath()
     @State private var searchPath = NavigationPath()
     @State private var favoritesPath = NavigationPath()
+    @State private var calculatorPath = NavigationPath()
     @State private var isSearchActive = false
 
     var body: some View {
@@ -55,10 +56,17 @@ struct RootView: View {
                 }
                 .tag(AppTab.favorites)
                 .toolbar(.hidden, for: .tabBar)
+
+                NavigationStack(path: $calculatorPath) {
+                    CalculatorView()
+                        .reservingTabBarSpace()
+                }
+                .tag(AppTab.calculator)
+                .toolbar(.hidden, for: .tabBar)
             }
             .tint(.orange)
 
-            // Like Android, the bar shows on the three top-level screens only, not on recipe details.
+            // Like Android, the bar shows on the top-level screens only, not on recipe details.
             if isOnTopLevelScreen {
                 FoodHubTabBar(selection: $tab)
                     .padding(.bottom, 8)
@@ -73,14 +81,16 @@ struct RootView: View {
         case .home: homePath.isEmpty
         case .search: searchPath.isEmpty
         case .favorites: favoritesPath.isEmpty
+        case .calculator: calculatorPath.isEmpty
         }
     }
 }
 
 private extension View {
-    /// Keeps scrollable content clear of the floating tab bar.
+    /// Keeps scrollable content clear of the floating tab bar: its icons, 6 pt padding above and
+    /// below, its 8 pt bottom margin, and a little air.
     func reservingTabBarSpace() -> some View {
-        safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 76) }
+        safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: barIconSize + 12 + 8 + 4) }
     }
 }
 

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ankitt.thefoodhub.core.AppConfig
+import com.ankitt.thefoodhub.feature.calculator.CalculatorViewModel
 import com.ankitt.thefoodhub.feature.detail.RecipeDetailViewModel
 import com.ankitt.thefoodhub.feature.favorites.FavoritesViewModel
 import com.ankitt.thefoodhub.feature.home.HomeViewModel
@@ -39,6 +40,8 @@ class ViewModelOwner : ViewModelStoreOwner, KoinComponent {
     fun searchViewModel(): SearchViewModel = provide { get<SearchViewModel>() }
 
     fun favoritesViewModel(): FavoritesViewModel = provide { get<FavoritesViewModel>() }
+
+    fun calculatorViewModel(): CalculatorViewModel = provide { get<CalculatorViewModel>() }
 
     fun recipeDetailViewModel(recipeId: Int): RecipeDetailViewModel =
         provide(key = "recipe-$recipeId") { get<RecipeDetailViewModel> { parametersOf(recipeId) } }
