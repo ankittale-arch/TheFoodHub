@@ -1,6 +1,9 @@
 package com.ankitt.thefoodhub.data.local
 
+import androidx.room3.ColumnInfo
 import androidx.room3.Entity
+import androidx.room3.ForeignKey
+import androidx.room3.Index
 import androidx.room3.PrimaryKey
 import kotlinx.serialization.Serializable
 
@@ -47,6 +50,72 @@ data class FavoriteEntity(
     val title: String,
     val imageUrl: String?,
     val savedAtEpochMillis: Long,
+)
+
+/** A user-made folder of favorites. Names are unique, ignoring case. */
+@Entity(tableName = "cookbooks", indices = [Index(value = ["name"], unique = true)])
+data class CookbookEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(collate = ColumnInfo.NOCASE) val name: String,
+    val createdAtEpochMillis: Long,
+)
+
+/**
+ * Junction table for the many-to-many link between [CookbookEntity] and [FavoriteEntity].
+ * Deleting either side deletes the link, so removing a favorite takes it out of every cookbook.
+ */
+@Entity(
+    tableName = "cookbook_recipes",
+    primaryKeys = ["cookbookId", "recipeId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = CookbookEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["cookbookId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = FavoriteEntity::class,
+            parentColumns = ["recipeId"],
+            childColumns = ["recipeId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    // The primary key already indexes cookbookId; this one serves lookups and cascades by recipe.
+    indices = [Index(value = ["recipeId"])],
+)
+data class CookbookRecipeEntity(
+    val cookbookId: Long,
+    val recipeId: Int,
+    val addedAtEpochMillis: Long,
+)
+
+/** A cookbook with how many recipes it holds, for the cookbook list. */
+data class CookbookWithCount(
+    val id: Long,
+    val name: String,
+    val recipeCount: Int,
+)
+
+/**
+ * The user's note on a recipe. No foreign key to favorites on purpose: removing a favorite must
+ * not delete what the user wrote, and saving the recipe again brings the note back.
+ */
+@Entity(tableName = "recipe_notes")
+data class RecipeNoteEntity(
+    @PrimaryKey val recipeId: Int,
+    val note: String,
+    val updatedAtEpochMillis: Long,
+)
+
+/** The user's tweak to one ingredient line of a recipe, e.g. "Used half". Kept like [RecipeNoteEntity]. */
+@Entity(tableName = "ingredient_tweaks", primaryKeys = ["recipeId", "ingredientLine"])
+data class IngredientTweakEntity(
+    val recipeId: Int,
+    /** The line as the recipe writes it ([com.ankitt.thefoodhub.domain.model.Ingredient.original]). */
+    val ingredientLine: String,
+    val tweak: String,
+    val updatedAtEpochMillis: Long,
 )
 
 /**

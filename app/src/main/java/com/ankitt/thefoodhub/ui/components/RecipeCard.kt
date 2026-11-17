@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.CardDefaults
@@ -22,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,6 +42,8 @@ fun RecipeCard(
     modifier: Modifier = Modifier,
     /** Extra line under the title, e.g. why a search result matched. */
     footer: (@Composable () -> Unit)? = null,
+    /** Shows the "Add to cookbook" button when set (favorites only). */
+    onAddToCookbook: (() -> Unit)? = null,
 ) {
     ElevatedCard(
         onClick = onClick,
@@ -47,6 +51,7 @@ fun RecipeCard(
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = FoodHubElevation.Card),
     ) {
         Box {
+            val buttonBackdrop = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
             AsyncImage(
                 model = recipe.imageUrl,
                 contentDescription = null,
@@ -56,14 +61,21 @@ fun RecipeCard(
                     .aspectRatio(4f / 3f)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
+            if (onAddToCookbook != null) {
+                IconButton(
+                    onClick = onAddToCookbook,
+                    modifier = Modifier.align(Alignment.TopStart).overImage(buttonBackdrop),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.MenuBook,
+                        contentDescription = stringResource(R.string.cookbook_add_recipe),
+                    )
+                }
+            }
             FavoriteButton(
                 isFavorite = isFavorite,
                 onClick = onToggleFavorite,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                modifier = Modifier.align(Alignment.TopEnd).overImage(buttonBackdrop),
             )
         }
         Column(Modifier.padding(12.dp)) {
@@ -81,6 +93,12 @@ fun RecipeCard(
         }
     }
 }
+
+/** A circular [backdrop] that keeps an icon button readable over the photo. */
+private fun Modifier.overImage(backdrop: Color): Modifier =
+    padding(4.dp)
+        .clip(CircleShape)
+        .background(backdrop)
 
 @Composable
 fun FavoriteButton(isFavorite: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {

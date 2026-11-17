@@ -1,6 +1,7 @@
 package com.ankitt.thefoodhub.ui.detail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +57,7 @@ import com.ankitt.thefoodhub.R
 import com.ankitt.thefoodhub.domain.model.Ingredient
 import com.ankitt.thefoodhub.domain.model.InstructionStep
 import com.ankitt.thefoodhub.domain.model.RecipeDetail
+import com.ankitt.thefoodhub.domain.model.RecipeNotes
 import com.ankitt.thefoodhub.feature.detail.RecipeDetailEffect
 import com.ankitt.thefoodhub.feature.detail.RecipeDetailIntent
 import com.ankitt.thefoodhub.feature.detail.RecipeDetailState
@@ -134,7 +136,7 @@ fun RecipeDetailScreen(
     ) { padding ->
         val contentModifier = Modifier.padding(padding)
         when {
-            recipe != null -> RecipeContent(recipe, contentModifier)
+            recipe != null -> RecipeContent(recipe, state, onIntent, contentModifier)
             state.error != null -> ErrorState(
                 error = state.error!!,
                 onRetry = { onIntent(RecipeDetailIntent.Retry) },
@@ -143,11 +145,17 @@ fun RecipeDetailScreen(
             else -> LoadingState(contentModifier)
         }
     }
+    state.noteEditor?.let { editor -> NoteEditorSheet(editor = editor, onIntent = onIntent) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun RecipeContent(recipe: RecipeDetail, modifier: Modifier = Modifier) {
+private fun RecipeContent(
+    recipe: RecipeDetail,
+    state: RecipeDetailState,
+    onIntent: (RecipeDetailIntent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val linkColor = MaterialTheme.colorScheme.primary
     val summary = remember(recipe.summaryHtml, linkColor) {
         AnnotatedString.fromHtml(
@@ -178,12 +186,31 @@ private fun RecipeContent(recipe: RecipeDetail, modifier: Modifier = Modifier) {
                         tags.forEach { tag -> SuggestionChip(onClick = {}, label = { Text(tag) }) }
                     }
                 }
-                if (summary.isNotEmpty()) {
-                    Text(summary, style = MaterialTheme.typography.bodyMedium)
-                }
             }
         }
-        ingredientsSection(recipe.ingredients)
+        item {
+            if (state.canTakeNotes) {
+                MyNotesCard(
+                    notes = state.notes,
+                    hasIngredients = recipe.ingredients.isNotEmpty(),
+                    onEditNote = { onIntent(RecipeDetailIntent.EditNote) },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            } else {
+                NotesLockedHint(Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+            }
+        }
+        // The user's notes come before Spoonacular's summary, which can run long.
+        if (summary.isNotEmpty()) {
+            item {
+                Text(summary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(16.dp))
+            }
+        }
+        ingredientsSection(
+            ingredients = recipe.ingredients,
+            tweaks = if (state.canTakeNotes) state.notes else null,
+            onEditTweak = { line -> onIntent(RecipeDetailIntent.EditIngredientTweak(line)) },
+        )
         instructionsSection(recipe.steps)
         item { SourceLink(recipe) }
     }
@@ -218,13 +245,29 @@ private fun LazyListScope.sectionHeader(titleRes: Int) {
     }
 }
 
-private fun LazyListScope.ingredientsSection(ingredients: List<Ingredient>) {
+/** [tweaks] is null while the recipe isn't saved; then the rows aren't tappable. */
+private fun LazyListScope.ingredientsSection(
+    ingredients: List<Ingredient>,
+    tweaks: RecipeNotes?,
+    onEditTweak: (ingredientLine: String) -> Unit,
+) {
     if (ingredients.isEmpty()) return
     sectionHeader(R.string.detail_ingredients)
     // Spoonacular can list the same ingredient twice, so key by position, not ingredient id.
     itemsIndexed(ingredients, key = { index, _ -> "ingredient-$index" }) { _, ingredient ->
+        val tweak = tweaks?.tweakFor(ingredient.original)
+        val editLabel = stringResource(if (tweak == null) R.string.notes_tweak_add else R.string.notes_tweak_edit)
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            Modifier
+                .fillMaxWidth()
+                .then(
+                    if (tweaks != null) {
+                        Modifier.clickable(onClickLabel = editLabel) { onEditTweak(ingredient.original) }
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AsyncImage(
@@ -237,7 +280,10 @@ private fun LazyListScope.ingredientsSection(ingredients: List<Ingredient>) {
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
             Box(Modifier.width(12.dp))
-            Text(ingredient.original, style = MaterialTheme.typography.bodyLarge)
+            Column {
+                Text(ingredient.original, style = MaterialTheme.typography.bodyLarge)
+                if (tweak != null) IngredientTweakLine(tweak)
+            }
         }
     }
 }

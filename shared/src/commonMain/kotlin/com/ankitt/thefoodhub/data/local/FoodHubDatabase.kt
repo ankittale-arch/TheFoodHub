@@ -17,14 +17,22 @@ import kotlinx.coroutines.IO
         WinePairingEntity::class,
         IngredientDensityEntity::class,
         IngredientSubstitutesEntity::class,
+        CookbookEntity::class,
+        CookbookRecipeEntity::class,
+        RecipeNoteEntity::class,
+        IngredientTweakEntity::class,
     ],
-    version = 3,
+    version = 5,
     exportSchema = true,
     autoMigrations = [
         // 2 adds the wine_pairings table.
         AutoMigration(from = 1, to = 2),
         // 3 adds the kitchen calculator's ingredient_densities and ingredient_substitutes tables.
         AutoMigration(from = 2, to = 3),
+        // 4 adds cookbooks and the cookbook_recipes junction table.
+        AutoMigration(from = 3, to = 4),
+        // 5 adds the user's recipe_notes and ingredient_tweaks.
+        AutoMigration(from = 4, to = 5),
     ],
 )
 @ColumnTypeConverters(RoomConverters::class)
@@ -34,6 +42,8 @@ abstract class FoodHubDatabase : RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
     abstract fun winePairingDao(): WinePairingDao
     abstract fun kitchenDao(): KitchenDao
+    abstract fun cookbookDao(): CookbookDao
+    abstract fun recipeNotesDao(): RecipeNotesDao
 
     companion object {
         const val FILE_NAME = "foodhub.db"

@@ -93,6 +93,35 @@
     <string name="favorites_empty_body">Tap the heart on any recipe to save it here.</string>
     <string name="favorites_removed">Removed “%1$s”</string>
 
+    <!-- Cookbooks -->
+    <string name="cookbook_all">All · %1$d</string>
+    <string name="cookbook_chip">%1$s · %2$d</string>
+    <string name="cookbook_new">New cookbook</string>
+    <string name="cookbook_add_recipe">Add to cookbook</string>
+    <string name="cookbook_picker_title">Save to cookbook</string>
+    <plurals name="cookbook_recipe_count">
+        <item quantity="one">%1$d recipe</item>
+        <item quantity="other">%1$d recipes</item>
+    </plurals>
+    <string name="cookbook_name_title_new">New cookbook</string>
+    <string name="cookbook_name_title_rename">Rename cookbook</string>
+    <string name="cookbook_name_label">Name</string>
+    <string name="cookbook_name_hint">e.g. Quick Weeknight</string>
+    <string name="cookbook_name_error_blank">Give your cookbook a name.</string>
+    <string name="cookbook_name_error_too_long">Keep it to %1$d characters or fewer.</string>
+    <string name="cookbook_name_error_taken">You already have a cookbook with this name.</string>
+    <string name="cookbook_options">Cookbook options</string>
+    <string name="cookbook_rename">Rename</string>
+    <string name="cookbook_delete">Delete cookbook</string>
+    <string name="cookbook_delete_title">Delete “%1$s”?</string>
+    <string name="cookbook_delete_body">Its recipes stay in your favorites.</string>
+    <string name="cookbook_empty_title">Nothing in %1$s yet</string>
+    <string name="cookbook_empty_body">Tap the book icon on any favorite to add it here.</string>
+    <string name="action_create">Create</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+
     <!-- Kitchen calculator -->
     <string name="calculator_title">Kitchen calculator</string>
     <string name="calculator_tool_convert">Convert</string>
@@ -154,6 +183,21 @@
     <string name="detail_source_unknown">View original recipe</string>
     <string name="detail_saved">Saved to favorites</string>
     <string name="detail_unsaved">Removed from favorites</string>
+
+    <!-- Recipe notes -->
+    <string name="notes_title">My notes</string>
+    <string name="notes_add">Add a note</string>
+    <string name="notes_edit">Edit note</string>
+    <string name="notes_tweak_hint">Tap an ingredient to note a tweak.</string>
+    <string name="notes_locked">Save this recipe to add your own notes and ingredient tweaks.</string>
+    <string name="notes_tweak_add">Add a tweak</string>
+    <string name="notes_tweak_edit">Edit tweak</string>
+    <string name="notes_editor_title_note">Your note</string>
+    <string name="notes_editor_title_tweak">Ingredient tweak</string>
+    <string name="notes_editor_hint_note">e.g. Used half the sugar, baked 5 mins less</string>
+    <string name="notes_editor_hint_tweak">e.g. Used half</string>
+    <string name="notes_editor_counter">%1$d / %2$d</string>
+    <string name="action_remove">Remove</string>
 
     <!-- Errors -->
     <string name="error_network">Can’t reach Spoonacular. Check your connection.</string>

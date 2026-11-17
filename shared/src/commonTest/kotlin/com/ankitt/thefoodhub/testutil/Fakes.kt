@@ -10,20 +10,28 @@ import com.ankitt.thefoodhub.data.local.RecipeDao
 import com.ankitt.thefoodhub.data.local.RecipeEntity
 import com.ankitt.thefoodhub.data.local.WinePairingDao
 import com.ankitt.thefoodhub.data.local.WinePairingEntity
+import com.ankitt.thefoodhub.domain.model.Cookbook
+import com.ankitt.thefoodhub.domain.model.CookbookNameError
+import com.ankitt.thefoodhub.domain.model.CookbookNameResult
 import com.ankitt.thefoodhub.domain.model.IngredientSubstitutes
 import com.ankitt.thefoodhub.domain.model.PopularRecipe
 import com.ankitt.thefoodhub.domain.model.RecipeDetail
+import com.ankitt.thefoodhub.domain.model.RecipeNotes
 import com.ankitt.thefoodhub.domain.model.RecipePage
 import com.ankitt.thefoodhub.domain.model.RecipeSummary
 import com.ankitt.thefoodhub.domain.model.SearchCriteria
 import com.ankitt.thefoodhub.domain.model.WinePairing
+import com.ankitt.thefoodhub.domain.repository.CookbookRepository
 import com.ankitt.thefoodhub.domain.repository.FavoritesRepository
 import com.ankitt.thefoodhub.domain.repository.KitchenRepository
+import com.ankitt.thefoodhub.domain.repository.RecipeNotesRepository
 import com.ankitt.thefoodhub.domain.repository.RecipeRepository
 import com.ankitt.thefoodhub.domain.repository.WinePairingRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
@@ -90,6 +98,98 @@ class FakeFavoritesRepository(initial: List<RecipeSummary> = emptyList()) : Favo
         setFavorite(recipe, newValue)
         return newValue
     }
+}
+
+/**
+ * In-memory cookbooks over [favorites], with the same rules as the Room schema: only favorites
+ * can be filed, names are unique ignoring case, and removing a favorite drops its links.
+ */
+class FakeCookbookRepository(private val favorites: FakeFavoritesRepository) : CookbookRepository {
+    /** Cookbook id to name, in creation order. */
+    val names = MutableStateFlow<Map<Long, String>>(emptyMap())
+
+    /** Cookbook id to recipe ids, most recently added first. */
+    private val links = MutableStateFlow<Map<Long, List<Int>>>(emptyMap())
+    private var nextId = 1L
+
+    /** Links whose recipe is no longer a favorite are dropped, like the foreign key cascade. */
+    private val liveLinks = combine(links, favorites.favorites) { links, favs ->
+        val ids = favs.map { it.id }.toSet()
+        links.mapValues { (_, recipes) -> recipes.filter { it in ids } }
+    }
+
+    override fun observeCookbooks(): Flow<List<Cookbook>> = combine(names, liveLinks) { names, links ->
+        names.map { (id, name) -> Cookbook(id, name, links[id].orEmpty().size) }.sortedBy { it.name.lowercase() }
+    }
+
+    override fun observeRecipes(cookbookId: Long): Flow<List<RecipeSummary>> =
+        combine(liveLinks, favorites.favorites) { links, favs ->
+            links[cookbookId].orEmpty().mapNotNull { id -> favs.firstOrNull { it.id == id } }
+        }
+
+    override fun observeCookbookIds(recipeId: Int): Flow<Set<Long>> =
+        liveLinks.map { links -> links.filterValues { recipeId in it }.keys }.distinctUntilChanged()
+
+    override suspend fun cookbookIds(recipeId: Int): Set<Long> = observeCookbookIds(recipeId).first()
+
+    override suspend fun createCookbook(name: String): CookbookNameResult {
+        val cleaned = Cookbook.normalizeName(name)
+        validate(cleaned, exceptId = 0)?.let { return CookbookNameResult.Rejected(it) }
+        val id = nextId++
+        names.update { it + (id to cleaned) }
+        return CookbookNameResult.Saved(id)
+    }
+
+    override suspend fun renameCookbook(cookbookId: Long, name: String): CookbookNameResult {
+        val cleaned = Cookbook.normalizeName(name)
+        validate(cleaned, exceptId = cookbookId)?.let { return CookbookNameResult.Rejected(it) }
+        names.update { it + (cookbookId to cleaned) }
+        return CookbookNameResult.Saved(cookbookId)
+    }
+
+    override suspend fun deleteCookbook(cookbookId: Long) {
+        names.update { it - cookbookId }
+        links.update { it - cookbookId }
+    }
+
+    override suspend fun addRecipe(recipeId: Int, cookbookIds: Set<Long>) {
+        if (favorites.favorites.value.none { it.id == recipeId }) return
+        links.update { current ->
+            current + cookbookIds.filter { it in names.value }.associateWith { id ->
+                val recipes = current[id].orEmpty()
+                if (recipeId in recipes) recipes else listOf(recipeId) + recipes
+            }
+        }
+    }
+
+    override suspend fun removeRecipe(recipeId: Int, cookbookId: Long) {
+        links.update { current -> current + (cookbookId to current[cookbookId].orEmpty().filterNot { it == recipeId }) }
+    }
+
+    private fun validate(name: String, exceptId: Long): CookbookNameError? = when {
+        name.isEmpty() -> CookbookNameError.Blank
+        name.length > Cookbook.MAX_NAME_LENGTH -> CookbookNameError.TooLong
+        names.value.any { (id, existing) -> id != exceptId && existing.equals(name, ignoreCase = true) } -> CookbookNameError.Taken
+        else -> null
+    }
+}
+
+/** Notes per recipe id, trimmed like the real repository; blank text removes. */
+class FakeRecipeNotesRepository : RecipeNotesRepository {
+    val notes = MutableStateFlow<Map<Int, RecipeNotes>>(emptyMap())
+
+    override fun observeNotes(recipeId: Int): Flow<RecipeNotes> =
+        notes.map { it[recipeId] ?: RecipeNotes.EMPTY }.distinctUntilChanged()
+
+    override suspend fun saveNote(recipeId: Int, note: String) = edit(recipeId) { copy(note = note.trim()) }
+
+    override suspend fun saveTweak(recipeId: Int, ingredientLine: String, tweak: String) = edit(recipeId) {
+        val cleaned = tweak.trim()
+        copy(tweaks = if (cleaned.isEmpty()) tweaks - ingredientLine else tweaks + (ingredientLine to cleaned))
+    }
+
+    private fun edit(recipeId: Int, change: RecipeNotes.() -> RecipeNotes) =
+        notes.update { it + (recipeId to (it[recipeId] ?: RecipeNotes.EMPTY).change()) }
 }
 
 class FakeRecipeDao : RecipeDao {

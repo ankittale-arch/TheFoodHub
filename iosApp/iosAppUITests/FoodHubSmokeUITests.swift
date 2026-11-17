@@ -60,6 +60,114 @@ final class FoodHubSmokeUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Favorites"].waitForExistence(timeout: 10))
     }
 
+    /// Favorites a search result (needs the API key), then creates a cookbook, files the recipe in it, and deletes the cookbook.
+    @MainActor
+    func testCookbooksOrganizeFavorites() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        app.buttons["Search"].tap()
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+        searchField.tap()
+        searchField.typeText("brownies\n")
+
+        let addFavorite = app.scrollViews["searchResults"].buttons["Add to favorites"].firstMatch
+        let removeFavorite = app.scrollViews["searchResults"].buttons["Remove from favorites"].firstMatch
+        XCTAssertTrue(waitForAny([addFavorite, removeFavorite, app.staticTexts[keyError]], timeout: 20))
+        if app.staticTexts[keyError].exists { throw XCTSkip("Needs a Spoonacular API key to save a favorite") }
+        if addFavorite.exists { addFavorite.tap() }
+
+        app.buttons["Favorites"].tap()
+        // A unique name, so runs on the same simulator don't clash with an earlier cookbook.
+        let name = "Desserts \(Int(Date().timeIntervalSince1970) % 100_000)"
+
+        app.buttons["New cookbook"].tap()
+        let nameField = app.textFields["Name"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.typeText(name)
+        app.buttons["Create"].tap()
+
+        // The new cookbook opens straight away, empty.
+        XCTAssertTrue(app.buttons["\(name) · 0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Nothing in \(name) yet"].exists)
+
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'All · '")).firstMatch.tap()
+        app.buttons["Add to cookbook"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Save to cookbook"].waitForExistence(timeout: 5))
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch.tap()
+        attachScreenshot(app, name: "Cookbooks: picker")
+        app.buttons["Done"].tap()
+
+        let filledChip = app.buttons["\(name) · 1"]
+        XCTAssertTrue(filledChip.waitForExistence(timeout: 5))
+        filledChip.tap()
+        XCTAssertFalse(app.staticTexts["Nothing in \(name) yet"].exists)
+        attachScreenshot(app, name: "Cookbooks: filtered")
+
+        app.buttons["Cookbook options"].tap()
+        app.buttons["Delete cookbook"].tap()
+        app.alerts.buttons["Delete"].tap()
+        XCTAssertTrue(filledChip.waitForNonExistence(timeout: 5), "The deleted cookbook's chip should go away")
+    }
+
+    /// Saves a recipe (needs the API key), then writes a note and an ingredient tweak on it and removes both.
+    @MainActor
+    func testRecipeNotesAndIngredientTweaks() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        app.buttons["Search"].tap()
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+        searchField.tap()
+        searchField.typeText("brownies\n")
+        let addFavorite = app.scrollViews["searchResults"].buttons["Add to favorites"].firstMatch
+        let removeFavorite = app.scrollViews["searchResults"].buttons["Remove from favorites"].firstMatch
+        XCTAssertTrue(waitForAny([addFavorite, removeFavorite, app.staticTexts[keyError]], timeout: 20))
+        if app.staticTexts[keyError].exists { throw XCTSkip("Needs a Spoonacular API key to save a favorite") }
+        if addFavorite.exists { addFavorite.tap() }
+
+        app.buttons["Favorites"].tap()
+        app.buttons["favoriteRecipe"].firstMatch.tap()
+
+        let notesCard = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'My notes'")).firstMatch
+        XCTAssertTrue(notesCard.waitForExistence(timeout: 20), "A saved recipe shows the notes card")
+        // A failed earlier run may have left a note on this simulator.
+        if notesCard.label.contains("Edit note") {
+            notesCard.tap()
+            app.buttons["Remove"].tap()
+        }
+
+        notesCard.tap()
+        XCTAssertTrue(app.navigationBars["Your note"].waitForExistence(timeout: 5))
+        app.typeText("Used half the sugar, baked 5 mins less")
+        app.navigationBars["Your note"].buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Used half the sugar, baked 5 mins less"].waitForExistence(timeout: 5))
+
+        let ingredient = app.buttons["ingredient"].firstMatch
+        ingredient.swipeUpUntilHittable(in: app)
+        ingredient.tap()
+        XCTAssertTrue(app.navigationBars["Ingredient tweak"].waitForExistence(timeout: 5))
+        if app.buttons["Remove"].exists {
+            app.buttons["Remove"].tap()
+            ingredient.tap()
+        }
+        app.typeText("Used half")
+        app.navigationBars["Ingredient tweak"].buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Used half"].waitForExistence(timeout: 5))
+        attachScreenshot(app, name: "Recipe notes: tweak")
+
+        // Clean up: Remove clears both.
+        ingredient.tap()
+        app.buttons["Remove"].tap()
+        XCTAssertTrue(app.staticTexts["Used half"].waitForNonExistence(timeout: 5))
+        app.swipeDown()
+        notesCard.tap()
+        app.buttons["Remove"].tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Add a note'")).firstMatch.waitForExistence(timeout: 5))
+    }
+
     /// Same-dimension conversions are worked out on the device, so this needs no API key or network.
     @MainActor
     func testKitchenCalculatorConvertsOfflineAndOpensSubstitutes() {
@@ -99,5 +207,17 @@ final class FoodHubSmokeUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         } while Date() < deadline
         return false
+    }
+}
+
+private extension XCUIElement {
+    /// Scrolls the app up until this element can be tapped (it may start below the fold).
+    @MainActor
+    func swipeUpUntilHittable(in app: XCUIApplication, maxSwipes: Int = 6) {
+        var swipes = 0
+        while !(exists && isHittable) && swipes < maxSwipes {
+            app.swipeUp()
+            swipes += 1
+        }
     }
 }

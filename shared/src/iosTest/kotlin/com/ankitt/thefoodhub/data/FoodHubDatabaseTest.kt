@@ -3,6 +3,10 @@ package com.ankitt.thefoodhub.data
 import androidx.room3.Room
 import app.cash.turbine.test
 import com.ankitt.thefoodhub.core.Outcome
+import com.ankitt.thefoodhub.domain.model.Cookbook
+import com.ankitt.thefoodhub.domain.model.CookbookNameError
+import com.ankitt.thefoodhub.domain.model.CookbookNameResult
+import com.ankitt.thefoodhub.domain.model.RecipeNotes
 import com.ankitt.thefoodhub.data.local.FavoriteEntity
 import com.ankitt.thefoodhub.data.local.FoodHubDatabase
 import com.ankitt.thefoodhub.data.local.IngredientDensityEntity
@@ -13,7 +17,9 @@ import com.ankitt.thefoodhub.data.local.StoredStep
 import com.ankitt.thefoodhub.data.local.StoredWineBottle
 import com.ankitt.thefoodhub.data.local.WinePairingEntity
 import com.ankitt.thefoodhub.data.local.buildFoodHubDatabase
+import com.ankitt.thefoodhub.data.repository.CookbookRepositoryImpl
 import com.ankitt.thefoodhub.data.repository.FavoritesRepositoryImpl
+import com.ankitt.thefoodhub.data.repository.RecipeNotesRepositoryImpl
 import com.ankitt.thefoodhub.data.repository.RecipeRepositoryImpl
 import com.ankitt.thefoodhub.testutil.FixedClock
 import com.ankitt.thefoodhub.testutil.MockSpoonacular
@@ -27,6 +33,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -159,5 +166,148 @@ class FoodHubDatabaseTest {
 
         assertTrue(favorites.toggleFavorite(recipeSummary(716429)))
         assertEquals(setOf(716429), favorites.observeFavoriteIds().first())
+    }
+
+    private val favoritesRepo = FavoritesRepositoryImpl(db.favoriteDao(), FixedClock())
+    private val clock = FixedClock()
+    private val cookbooks = CookbookRepositoryImpl(db.cookbookDao(), clock)
+
+    private suspend fun create(name: String): Long = assertIs<CookbookNameResult.Saved>(cookbooks.createCookbook(name)).cookbookId
+
+    @Test
+    fun cookbooksAreSortedByNameWithCountsAndNamesAreUniqueIgnoringCase() = runTest {
+        favoritesRepo.setFavorite(recipeSummary(1), favorite = true)
+        val weeknight = create("quick Weeknight")
+        val desserts = create("Desserts")
+        cookbooks.addRecipe(1, setOf(desserts))
+
+        assertEquals(
+            listOf(Cookbook(desserts, "Desserts", 1), Cookbook(weeknight, "quick Weeknight", 0)),
+            cookbooks.observeCookbooks().first(),
+        )
+        assertEquals(CookbookNameResult.Rejected(CookbookNameError.Taken), cookbooks.createCookbook(" DESSERTS "))
+        assertEquals(CookbookNameResult.Rejected(CookbookNameError.Taken), cookbooks.renameCookbook(weeknight, "desserts"))
+        assertEquals(CookbookNameResult.Rejected(CookbookNameError.Blank), cookbooks.createCookbook("  "))
+        assertEquals(
+            CookbookNameResult.Rejected(CookbookNameError.TooLong),
+            cookbooks.createCookbook("x".repeat(Cookbook.MAX_NAME_LENGTH + 1)),
+        )
+        // Changing only the case of its own name is fine.
+        assertEquals(CookbookNameResult.Saved(weeknight), cookbooks.renameCookbook(weeknight, "Quick Weeknight"))
+        assertEquals(listOf("Desserts", "Quick Weeknight"), cookbooks.observeCookbooks().first().map { it.name })
+    }
+
+    @Test
+    fun aRecipeCanBeInManyCookbooksNewestAddedFirst() = runTest {
+        (1..3).forEach { favoritesRepo.setFavorite(recipeSummary(it), favorite = true) }
+        val desserts = create("Desserts")
+        val mealPrep = create("Meal Prep")
+
+        clock.nowMillis = 1
+        cookbooks.addRecipe(1, setOf(desserts, mealPrep))
+        clock.nowMillis = 2
+        cookbooks.addRecipe(3, setOf(desserts))
+        // Adding again is ignored and keeps the original position.
+        clock.nowMillis = 3
+        cookbooks.addRecipe(1, setOf(desserts))
+
+        assertEquals(listOf(3, 1), cookbooks.observeRecipes(desserts).first().map { it.id })
+        assertEquals(listOf(1), cookbooks.observeRecipes(mealPrep).first().map { it.id })
+        assertEquals(setOf(desserts, mealPrep), cookbooks.cookbookIds(1))
+
+        cookbooks.removeRecipe(1, desserts)
+        assertEquals(setOf(mealPrep), cookbooks.observeCookbookIds(1).first())
+    }
+
+    @Test
+    fun onlyFavoritesInExistingCookbooksCanBeFiled() = runTest {
+        favoritesRepo.setFavorite(recipeSummary(1), favorite = true)
+        val desserts = create("Desserts")
+
+        // Neither would satisfy the foreign keys; both are skipped instead of throwing.
+        cookbooks.addRecipe(99, setOf(desserts))
+        cookbooks.addRecipe(1, setOf(desserts, 12345L))
+
+        assertEquals(setOf(desserts), cookbooks.cookbookIds(1))
+        assertEquals(emptySet(), cookbooks.cookbookIds(99))
+    }
+
+    @Test
+    fun deletesCascadeThroughTheJunctionTable() = runTest {
+        favoritesRepo.setFavorite(recipeSummary(1), favorite = true)
+        favoritesRepo.setFavorite(recipeSummary(2), favorite = true)
+        val desserts = create("Desserts")
+        val mealPrep = create("Meal Prep")
+        cookbooks.addRecipe(1, setOf(desserts, mealPrep))
+        cookbooks.addRecipe(2, setOf(desserts))
+
+        // Unfavoriting takes the recipe out of every cookbook.
+        favoritesRepo.setFavorite(recipeSummary(1), favorite = false)
+        assertEquals(emptySet(), cookbooks.cookbookIds(1))
+        assertEquals(listOf(1, 0), cookbooks.observeCookbooks().first().map { it.recipeCount })
+
+        // Deleting a cookbook keeps its recipes in favorites.
+        cookbooks.deleteCookbook(desserts)
+        assertEquals(listOf("Meal Prep"), cookbooks.observeCookbooks().first().map { it.name })
+        assertEquals(emptySet(), cookbooks.cookbookIds(2))
+        assertEquals(setOf(2), favoritesRepo.observeFavoriteIds().first())
+    }
+
+    @Test
+    fun resavingAFavoriteKeepsItsCookbooks() = runTest {
+        favoritesRepo.setFavorite(recipeSummary(1), favorite = true)
+        val desserts = create("Desserts")
+        cookbooks.addRecipe(1, setOf(desserts))
+
+        // @Upsert updates the existing row instead of replacing it, so nothing cascades.
+        favoritesRepo.setFavorite(recipeSummary(1).copy(title = "Renamed"), favorite = true)
+
+        assertEquals(setOf(desserts), cookbooks.cookbookIds(1))
+        assertEquals(listOf("Renamed"), cookbooks.observeRecipes(desserts).first().map { it.title })
+    }
+
+    private val notesRepo = RecipeNotesRepositoryImpl(db.recipeNotesDao(), FixedClock())
+
+    @Test
+    fun notesAndTweaksRoundTripPerRecipeAndBlankDeletes() = runTest {
+        notesRepo.saveNote(1, "  Used half the sugar, baked 5 mins less\n")
+        notesRepo.saveTweak(1, "1 cup sugar", "Used half")
+        notesRepo.saveTweak(1, "1 tsp salt", "Pinch")
+        notesRepo.saveTweak(2, "1 cup sugar", "Honey instead")
+
+        assertEquals(
+            RecipeNotes("Used half the sugar, baked 5 mins less", mapOf("1 cup sugar" to "Used half", "1 tsp salt" to "Pinch")),
+            notesRepo.observeNotes(1).first(),
+        )
+        assertEquals(mapOf("1 cup sugar" to "Honey instead"), notesRepo.observeNotes(2).first().tweaks)
+
+        notesRepo.saveTweak(1, "1 cup sugar", "A third")
+        notesRepo.saveTweak(1, "1 tsp salt", " ")
+        notesRepo.saveNote(1, "")
+
+        assertEquals(RecipeNotes(tweaks = mapOf("1 cup sugar" to "A third")), notesRepo.observeNotes(1).first())
+        assertEquals(RecipeNotes.EMPTY, notesRepo.observeNotes(3).first())
+    }
+
+    @Test
+    fun notesSurviveRemovingTheFavorite() = runTest {
+        favoritesRepo.setFavorite(recipeSummary(1), favorite = true)
+        notesRepo.saveNote(1, "Baked 5 mins less")
+        notesRepo.saveTweak(1, "2 eggs", "Flax eggs")
+
+        favoritesRepo.setFavorite(recipeSummary(1), favorite = false)
+
+        assertEquals(RecipeNotes("Baked 5 mins less", mapOf("2 eggs" to "Flax eggs")), notesRepo.observeNotes(1).first())
+    }
+
+    @Test
+    fun overlongTextIsCappedAtTheLimit() = runTest {
+        notesRepo.saveNote(1, "a".repeat(RecipeNotes.MAX_NOTE_LENGTH + 10))
+        notesRepo.saveTweak(1, "salt", "b".repeat(RecipeNotes.MAX_TWEAK_LENGTH + 10))
+
+        with(notesRepo.observeNotes(1).first()) {
+            assertEquals(RecipeNotes.MAX_NOTE_LENGTH, note.length)
+            assertEquals(RecipeNotes.MAX_TWEAK_LENGTH, tweakFor("salt")?.length)
+        }
     }
 }

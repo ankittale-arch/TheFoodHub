@@ -1,19 +1,25 @@
 package com.ankitt.thefoodhub.di
 
 import com.ankitt.thefoodhub.core.AppConfig
+import com.ankitt.thefoodhub.data.local.CookbookDao
 import com.ankitt.thefoodhub.data.local.FavoriteDao
 import com.ankitt.thefoodhub.data.local.FoodHubDatabase
 import com.ankitt.thefoodhub.data.local.KitchenDao
+import com.ankitt.thefoodhub.data.local.RecipeNotesDao
 import com.ankitt.thefoodhub.data.local.RecipeDao
 import com.ankitt.thefoodhub.data.local.WinePairingDao
 import com.ankitt.thefoodhub.data.remote.SpoonacularApi
 import com.ankitt.thefoodhub.data.remote.createHttpClient
+import com.ankitt.thefoodhub.data.repository.CookbookRepositoryImpl
 import com.ankitt.thefoodhub.data.repository.FavoritesRepositoryImpl
 import com.ankitt.thefoodhub.data.repository.KitchenRepositoryImpl
+import com.ankitt.thefoodhub.data.repository.RecipeNotesRepositoryImpl
 import com.ankitt.thefoodhub.data.repository.RecipeRepositoryImpl
 import com.ankitt.thefoodhub.data.repository.WinePairingRepositoryImpl
+import com.ankitt.thefoodhub.domain.repository.CookbookRepository
 import com.ankitt.thefoodhub.domain.repository.FavoritesRepository
 import com.ankitt.thefoodhub.domain.repository.KitchenRepository
+import com.ankitt.thefoodhub.domain.repository.RecipeNotesRepository
 import com.ankitt.thefoodhub.domain.repository.RecipeRepository
 import com.ankitt.thefoodhub.domain.repository.WinePairingRepository
 import com.ankitt.thefoodhub.feature.calculator.CalculatorViewModel
@@ -51,11 +57,15 @@ internal fun dataModule(config: AppConfig): Module = module {
     single<FavoriteDao> { get<FoodHubDatabase>().favoriteDao() }
     single<WinePairingDao> { get<FoodHubDatabase>().winePairingDao() }
     single<KitchenDao> { get<FoodHubDatabase>().kitchenDao() }
+    single<CookbookDao> { get<FoodHubDatabase>().cookbookDao() }
+    single<RecipeNotesDao> { get<FoodHubDatabase>().recipeNotesDao() }
 
     singleOf(::RecipeRepositoryImpl) { bind<RecipeRepository>() }
     singleOf(::FavoritesRepositoryImpl) { bind<FavoritesRepository>() }
     singleOf(::WinePairingRepositoryImpl) { bind<WinePairingRepository>() }
     singleOf(::KitchenRepositoryImpl) { bind<KitchenRepository>() }
+    singleOf(::CookbookRepositoryImpl) { bind<CookbookRepository>() }
+    singleOf(::RecipeNotesRepositoryImpl) { bind<RecipeNotesRepository>() }
 }
 
 internal val viewModelModule: Module = module {
@@ -63,7 +73,7 @@ internal val viewModelModule: Module = module {
     viewModelOf(::SearchViewModel)
     viewModelOf(::FavoritesViewModel)
     viewModelOf(::CalculatorViewModel)
-    viewModel { (recipeId: Int) -> RecipeDetailViewModel(recipeId, get(), get()) }
+    viewModel { (recipeId: Int) -> RecipeDetailViewModel(recipeId, get(), get(), get()) }
 }
 
 fun sharedModules(config: AppConfig): List<Module> =

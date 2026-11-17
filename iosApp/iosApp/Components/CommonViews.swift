@@ -46,12 +46,30 @@ struct FavoriteButton: View {
     }
 }
 
+/// Opens the "Save to cookbook" sheet for a favorite.
+struct CookbookButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "book.closed")
+                .foregroundStyle(Color.primary)
+                .padding(8)
+                .background(.thinMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Add to cookbook")
+    }
+}
+
 struct RecipeCard: View {
     let recipe: RecipeSummary
     let isFavorite: Bool
     /// Extra line under the title, e.g. why a search result matched.
     var footer: String?
     let onToggleFavorite: () -> Void
+    /// Shows the "Add to cookbook" button when set (favorites only).
+    var onAddToCookbook: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -61,6 +79,11 @@ struct RecipeCard: View {
                 .clipped()
                 .overlay(alignment: .topTrailing) {
                     FavoriteButton(isFavorite: isFavorite, action: onToggleFavorite).padding(6)
+                }
+                .overlay(alignment: .topLeading) {
+                    if let onAddToCookbook {
+                        CookbookButton(action: onAddToCookbook).padding(6)
+                    }
                 }
             VStack(alignment: .leading, spacing: 4) {
                 Text(recipe.title)
